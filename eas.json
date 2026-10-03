@@ -10,6 +10,6 @@
     "production": { "autoIncrement": true, "channel": "production" }
   },
   "submit": {
-    "production": { "ios": { "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID" } }
+    "production": { "ios": { "ascAppId": "6818885857" } }
   }
 }
