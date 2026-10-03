@@ -1,0 +1,454 @@
+/**
+ * Virtuve is Latvian-only. All user-facing copy lives here as a typed object so
+ * every screen gets autocomplete and a compile error on a mistyped key (safer
+ * than runtime i18n lookups for a single-language app). Written in natural
+ * Latvian, not translated. Functions handle interpolation and counts.
+ */
+import type {
+  AmountLabel, AttendanceStatus, CookingLove, Effort, FoodCategory, Freshness, ItemState,
+  MealRating, MemberRole, Mood, PlanStatus, Portion, ShoppingStatus, StorageLocation, VoteChoice,
+} from '../api/types';
+
+/** Latvian singular/plural: n ending in 1 but not 11 → singular form. */
+export const lvPlural = (n: number, one: string, many: string): string =>
+  n % 10 === 1 && n % 100 !== 11 ? one : many;
+
+export const count = (n: number, one: string, many: string): string => `${n} ${lvPlural(n, one, many)}`;
+
+// ─── enum labels ─────────────────────────────────────────────────────────────
+
+export const locationLabel: Record<StorageLocation, string> = {
+  fridge: 'Ledusskapis',
+  freezer: 'Saldētava',
+  pantry: 'Pieliekamais',
+  staple: 'Vienmēr mājās',
+};
+
+export const categoryLabel: Record<FoodCategory, string> = {
+  produce: 'Dārzeņi un augļi',
+  meat: 'Gaļa',
+  fish: 'Zivis',
+  dairy: 'Piena produkti',
+  bakery: 'Maize un konditoreja',
+  pantry_dry: 'Sausie produkti',
+  frozen: 'Saldētais',
+  drinks: 'Dzērieni',
+  condiments: 'Mērces un garšvielas',
+  snacks: 'Uzkodas',
+  leftovers: 'Pāri palikušais',
+  other: 'Cits',
+};
+
+export const amountLabel: Record<AmountLabel, string> = {
+  little: 'Mazliet',
+  some: 'Nedaudz',
+  lot: 'Daudz',
+  unknown: 'Nezinu',
+};
+
+export const freshnessLabel: Record<Freshness, string> = {
+  fresh: 'Svaigs',
+  use_soon: 'Drīz jāizlieto',
+  use_today: 'Jāizlieto šodien',
+  expired: 'Iespējams, bojāts',
+  unknown: 'Nav norādīts',
+};
+
+export const stateLabel: Record<ItemState, string> = {
+  sealed: 'Neatvērts',
+  opened: 'Atvērts',
+  cooked: 'Pagatavots',
+  frozen: 'Saldēts',
+};
+
+export const roleLabel: Record<MemberRole, string> = {
+  admin: 'Administrators',
+  member: 'Dalībnieks',
+  child: 'Bērns',
+};
+
+export const portionLabel: Record<Portion, string> = {
+  small: 'Maza porcija',
+  normal: 'Vidēja porcija',
+  large: 'Liela porcija',
+};
+
+export const cookingLoveLabel: Record<CookingLove, string> = {
+  love: 'Man patīk gatavot',
+  fine: 'Normāli, varu gatavot',
+  duty: 'Gatavoju, jo vajag',
+  minimal: 'Lūdzu, pēc iespējas vienkāršāk',
+};
+
+export const moodLabel: Record<Mood, string> = {
+  fast: 'Ātri',
+  healthy: 'Veselīgi',
+  hungry: 'Esmu izsalcis',
+  comfort: 'Kaut ko sātīgu',
+  light: 'Kaut ko vieglu',
+  use_soon: 'Izlietot, kas jāizlieto',
+  any: 'Vienalga, izvēlies mūsu vietā',
+};
+
+export const effortLabel: Record<Effort, string> = {
+  minimal: 'Gandrīz nemaz',
+  normal: 'Normāli',
+  can_cook: 'Varu pacensties',
+};
+
+export const voteLabel: Record<VoteChoice, string> = {
+  want: 'Gribu',
+  ok: 'Der',
+  no: 'Negribu',
+};
+
+export const ratingLabel: Record<MealRating, string> = {
+  love: 'Super',
+  ok: 'Normāli',
+  never: 'Vairs ne',
+};
+
+export const attendanceLabel: Record<AttendanceStatus, string> = {
+  home: 'Ēd mājās',
+  away: 'Neēd mājās',
+  unknown: 'Vēl nezina',
+};
+
+export const planStatusLabel: Record<PlanStatus, string> = {
+  planned: 'Ieplānots',
+  none: 'Nav plānots',
+  eating_out: 'Ēdam ārpus mājas',
+  not_cooking: 'Negatavojam',
+};
+
+export const shoppingStatusLabel: Record<ShoppingStatus, string> = {
+  todo: 'Jānopērk',
+  claimed: 'Paņemšu',
+  bought: 'Nopirkts',
+  unavailable: 'Nav veikalā',
+};
+
+export const feedbackLabel: Record<string, string> = {
+  too_salty: 'Par sāļu',
+  too_spicy: 'Par asu',
+  too_long: 'Pārāk ilgi',
+  too_heavy: 'Par treknu',
+  too_hard: 'Par sarežģītu',
+  loved: 'Ļoti garšīgi',
+  kids_liked: 'Bērniem patika',
+};
+
+export const equipmentLabel: Record<string, string> = {
+  stove: 'Plīts',
+  oven: 'Cepeškrāsns',
+  microwave: 'Mikroviļņu krāsns',
+  air_fryer: 'Air fryer',
+  blender: 'Blenderis',
+  toaster: 'Tosteris',
+  slow_cooker: 'Lēnvāres katls',
+  rice_cooker: 'Rīsu vārītājs',
+  grill: 'Grils',
+};
+
+export const dietLabel: Record<string, string> = {
+  vegetarian: 'Veģetārietis',
+  vegan: 'Vegāns',
+  no_pork: 'Neēd cūkgaļu',
+  no_dairy: 'Bez piena',
+  gluten_free: 'Bez glutēna',
+  pescatarian: 'Ēd zivis, ne gaļu',
+};
+
+export const priorityLabel: Record<keyof import('../api/types').HouseholdSettings['priorities'], string> = {
+  fast: 'Ātrums',
+  cheap: 'Budžets',
+  healthy: 'Veselīgums',
+  high_protein: 'Olbaltumvielas',
+  tasty: 'Garša',
+  low_effort: 'Mazs darbs',
+  use_leftovers: 'Izmantot atlikumus',
+  reduce_waste: 'Mazāk atkritumu',
+};
+
+// ─── copy ────────────────────────────────────────────────────────────────────
+
+export const L = {
+  app: {
+    name: 'Virtuve',
+    tagline: 'Mazāk domāšanas. Mazāk izmestas pārtikas. Mazāk strīdu par vakariņām.',
+  },
+  common: {
+    save: 'Saglabāt',
+    cancel: 'Atcelt',
+    next: 'Tālāk',
+    back: 'Atpakaļ',
+    add: 'Pievienot',
+    delete: 'Dzēst',
+    remove: 'Noņemt',
+    confirm: 'Apstiprināt',
+    done: 'Gatavs',
+    retry: 'Mēģināt vēlreiz',
+    close: 'Aizvērt',
+    edit: 'Labot',
+    skip: 'Izlaist',
+    loading: 'Brīdi…',
+    search: 'Meklēt',
+    all: 'Visi',
+    yes: 'Jā',
+    no: 'Nē',
+    ok: 'Labi',
+    today: 'Šodien',
+    none: 'Nav',
+    optional: 'neobligāti',
+    error: 'Kaut kas nogāja greizi',
+    offline: 'Nav savienojuma',
+  },
+  nav: {
+    home: 'Sākums',
+    kitchen: 'Virtuve',
+    shopping: 'Pirkumi',
+    us: 'Mēs',
+  },
+  onboarding: {
+    welcomeTitle: 'Ko ēdam?',
+    welcomeBody: 'Nofotografē ledusskapi. Virtuve pateiks, ko pagatavot no tā, kas tev jau ir.',
+    forWhom: 'Kam parasti gatavo?',
+    justMe: 'Tikai sev',
+    twoPeople: 'Diviem',
+    family: 'Ģimenei',
+    avoidTitle: 'Vai kaut ko neēdat?',
+    avoidBody: 'Vēlāk katram mājiniekam varēsi norādīt sīkāk.',
+    prioritiesTitle: 'Kas jums ir svarīgākais?',
+    prioritiesBody: 'Vari izvēlēties vairākus.',
+    cookingLoveTitle: 'Cik ļoti patīk gatavot?',
+    start: 'Sākam',
+    startNoAccount: 'Sākt bez konta',
+  },
+  auth: {
+    continueApple: 'Turpināt ar Apple',
+    continueNoAccount: 'Turpināt bez konta',
+    whyAccount: 'Konts vajadzīgs tikai tad, kad gribi pievienot mājiniekus un sinhronizēt virtuvi.',
+    signOut: 'Iziet',
+    signOutConfirm: 'Iziet no konta?',
+    deleteAccount: 'Dzēst kontu',
+    deleteAccountConfirm: 'Dzēst kontu un visus datus?',
+    deleteAccountBody: 'Visi tavi dati tiks neatgriezeniski dzēsti. Šo nevar atsaukt.',
+    deleteAccountYes: 'Jā, dzēst visu',
+    restored: 'Konts atjaunots',
+  },
+  home: {
+    morning: 'Labrīt',
+    day: 'Labdien',
+    evening: 'Labvakar',
+    eatsTonight: 'Šovakar ēd mājās',
+    change: 'Mainīt',
+    whatToEat: 'Ko ēdam šovakar?',
+    decideForUs: 'Izdomāt vakariņas',
+    useSoon: 'Jāizlieto drīz',
+    nothingUrgent: 'Nekas steidzami nav jāizlieto',
+    shoppingList: 'Pirkumu saraksts',
+    weekPlan: 'Šīs nedēļas plāns',
+    favourite: 'Mājas favorīts',
+    suggested: 'Piedāvājums',
+    emptyKitchen: 'Te daudz kas nenotiek',
+    emptyKitchenBody: 'Pievieno produktus, un izdomāsim vakariņas.',
+    scanFridge: 'Nofotografēt ledusskapi',
+    noHousehold: 'Izveido savu virtuvi, lai sāktu.',
+    createHousehold: 'Izveidot mājsaimniecību',
+    planCount: (done: number, total: number) => `${done} no ${total} vakariņām ieplānotas`,
+  },
+  kitchen: {
+    title: 'Mūsu virtuve',
+    empty: 'Šeit vēl nekā nav.',
+    addItem: 'Pievienot produktu',
+    scanPhoto: 'Nofotografēt',
+    scanLibrary: 'No galerijas',
+    addManual: 'Pievienot pašrocīgi',
+    scanReceipt: 'Skenēt čeku',
+    scanBarcode: 'Skenēt svītrkodu',
+    name: 'Nosaukums',
+    namePlaceholder: 'piem., Vistas fileja',
+    category: 'Kategorija',
+    location: 'Kur glabājas',
+    amount: 'Cik daudz',
+    freshness: 'Svaigums',
+    state: 'Stāvoklis',
+    expiresOn: 'Derīgs līdz',
+    useThis: 'Izmantot šo šovakar',
+    useThisBody: 'Atradīsim receptes tieši ar šo produktu.',
+    markUsed: 'Atzīmēt kā izlietotu',
+    usedAll: 'Viss izlietots',
+    usedSome: 'Daļa izlietota',
+    staplesTitle: 'Vienmēr mājās',
+    staplesBody: 'Produkti, kas tev gandrīz vienmēr ir — par tiem vairs neprasīsim.',
+    saveFridge: 'Glābjam ledusskapi',
+    saveFridgeBody: (n: number) => `${count(n, 'produkts', 'produkti')} drīz jāizlieto. Pagatavosim no tiem.`,
+    itemsCount: (n: number) => count(n, 'produkts', 'produkti'),
+  },
+  scan: {
+    title: 'Ko atradām',
+    scanning: 'Skatāmies, kas tev ir…',
+    found: (n: number) => `Atradām ${count(n, 'produktu', 'produktus')}`,
+    confidence: (p: number) => `${Math.round(p * 100)}%`,
+    confirm: 'Apstiprini',
+    notRight: 'Tas nav pareizi',
+    correctHint: 'Pieskaries, lai labotu nosaukumu vai kategoriju.',
+    addAll: 'Pievienot virtuvei',
+    addSelected: (n: number) => `Pievienot (${n})`,
+    takeAnother: 'Vēl viena bilde',
+    aiPreview: 'AI atpazīšana — pārbaudi un izlabo kļūdas.',
+    failed: 'Neizdevās atpazīt. Pamēģini citu bildi vai pievieno pašrocīgi.',
+    nothing: 'Neko neatradām. Pamēģini gaišāku bildi.',
+  },
+  meals: {
+    pickMood: 'Kāds šovakar noskaņojums?',
+    pickEffort: 'Cik daudz gribas gatavot?',
+    maxTime: 'Maksimālais laiks',
+    min10: '10 min',
+    min20: '20 min',
+    min30: '30 min',
+    anyTime: 'Vienalga',
+    whoEats: 'Kas šovakar ēd?',
+    thinking: 'Domājam, ko tev pagatavot…',
+    results: 'Lūk, 3 varianti',
+    wantThis: 'Gribu šo',
+    anotherOption: 'Citu variantu',
+    hideLikeThis: 'Nerādi man šādu',
+    startVote: 'Balsot visiem',
+    cook: 'Gatavot',
+    aiImage: 'AI priekšskatījums',
+    usesHave: (have: number, total: number) => `Jau ir ${have} no ${total} produktiem`,
+    needToBuy: 'Jāpiepērk',
+    willUse: 'Izlietos pirms sabojāšanās',
+    perPerson: (eur: number) => `≈ €${eur.toFixed(2)} / personai`,
+    servings: (n: number) => count(n, 'porcija', 'porcijas'),
+    timeActive: (m: number) => `${m} min aktīvi`,
+    timeTotal: (m: number) => `${m} min kopā`,
+    kcal: (k: number) => `${k} kcal`,
+    emptyInventory: 'Vispirms pievieno produktus virtuvē, lai izdomātu vakariņas.',
+    transformLeftovers: 'Pagatavot no atlikumiem',
+    makeHealthier: 'Veselīgāk',
+    makeCheaper: 'Lētāk',
+    makeFaster: 'Ātrāk',
+    makeVegetarian: 'Veģetāri',
+    for2days: 'Gatavot 2 dienām',
+  },
+  cook: {
+    title: 'Gatavošana',
+    prep: 'Sagatavošana',
+    step: (n: number, total: number) => `${n}. solis no ${total}`,
+    startTimer: (m: number) => `Sākt ${m} min taimeri`,
+    help: 'Palīdzība',
+    finish: 'Pabeigt',
+    finished: 'Gatavs! Kā sanāca?',
+    rateQuestion: 'Vai gatavotu vēlreiz?',
+    feedbackTitle: 'Kas bija?',
+    savePhoto: 'Pievienot bildi',
+    notes: 'Piezīmes',
+  },
+  vote: {
+    title: 'Vakariņu balsojums',
+    started: (name: string) => `${name} sāka balsojumu`,
+    yourTurn: 'Nobalso par vakariņām',
+    waiting: 'Gaidām pārējos…',
+    match: 'Sakrita!',
+    matchBody: (title: string) => `Šovakar — ${title}.`,
+    cookTogether: 'Gatavot kopā',
+    noMatch: 'Pagaidām nav vienprātības',
+    closeVote: 'Izvēlēties tagad',
+    decideForUs: 'Izvēlies mūsu vietā',
+    deadline: (t: string) => `Beidzas ${t}`,
+  },
+  shopping: {
+    title: 'Pirkumu saraksts',
+    empty: 'Saraksts ir tukšs.',
+    addItem: 'Pievienot preci',
+    namePlaceholder: 'piem., Piens',
+    atShop: 'Esmu veikalā',
+    leaveShop: 'Pabeidzu iepirkties',
+    someoneShopping: (name: string) => `${name} ir veikalā. Pēdējais brīdis kaut ko pievienot.`,
+    claim: 'Paņemšu',
+    unclaim: 'Tomēr ne',
+    markBought: 'Nopirkts',
+    markUnavailable: 'Nav veikalā',
+    clearBought: 'Notīrīt nopirktos',
+    stockBought: 'Pievienot virtuvei',
+    stockBoughtBody: 'Pārvietot nopirktos produktus uz virtuvi?',
+    boughtCount: (n: number) => `${count(n, 'prece', 'preces')} nopirktas`,
+    itemsCount: (n: number) => count(n, 'prece', 'preces'),
+    addedBy: (name: string) => `pievienoja ${name}`,
+  },
+  household: {
+    title: 'Mājsaimniecība',
+    members: 'Mājinieki',
+    inviteMember: 'Pievienot mājinieku',
+    inviteBody: 'Nosūti kodu vai saiti. Mājinieks redzēs kopīgo virtuvi, pirkumus un plānu.',
+    inviteCode: 'Ielūguma kods',
+    copyCode: 'Kopēt kodu',
+    shareLink: 'Dalīties ar saiti',
+    rotateCode: 'Jauns kods',
+    joinTitle: 'Pievienoties mājsaimniecībai',
+    joinBody: 'Ievadi kodu, ko saņēmi no mājinieka.',
+    join: 'Pievienoties',
+    createTitle: 'Izveidot mājsaimniecību',
+    createBody: 'Kā sauksim tavu māju?',
+    namePlaceholder: 'piem., Mūsu mājas',
+    create: 'Izveidot',
+    addChild: 'Pievienot bērnu',
+    childName: 'Vārds',
+    leave: 'Pamest mājsaimniecību',
+    role: 'Loma',
+    settings: 'Iestatījumi',
+    priorities: 'Prioritātes',
+    equipment: 'Virtuves aprīkojums',
+    budget: 'Nedēļas pārtikas budžets',
+    budgetOff: 'Izslēgts',
+    tone: 'Aplikācijas tonis',
+    toneNeutral: 'Neitrāls',
+    toneFriendly: 'Draudzīgs',
+    toneHumor: 'Ar humoru',
+    whoCooks: 'Kurš šovakar gatavo?',
+  },
+  member: {
+    title: 'Mans profils',
+    displayName: 'Vārds',
+    portion: 'Cik daudz parasti ēdu',
+    likes: 'Man garšo',
+    dislikes: 'Man negaršo',
+    never: 'Neēdu',
+    allergies: 'Alerģijas',
+    cuisines: 'Mīļākās virtuves',
+    diet: 'Uzturs',
+    eatsByDefault: 'Parasti ēd mājās',
+    addTag: 'Pievienot',
+    tagPlaceholder: 'piem., sēnes',
+    allergyWarning: 'Alerģijas produkti nekad netiks piedāvāti.',
+  },
+  plan: {
+    title: 'Nedēļas plāns',
+    planWeek: 'Saplānot nedēļu',
+    howMany: 'Cik vakariņas plānojam?',
+    days3: '3 dienas',
+    days5: '5 dienas',
+    days7: '7 dienas',
+    planning: 'Plānojam…',
+    noEntry: 'Nav plānots',
+    setMeal: 'Izvēlēties ēdienu',
+    eatingOut: 'Ēdam ārpus mājas',
+    notCooking: 'Negatavojam',
+    requests: 'Ko gribam apēst',
+    addRequest: 'Pievienot vēlmi',
+    requestPlaceholder: 'piem., lazanja',
+  },
+  errors: {
+    sign_in_required: 'Jāpierakstās, lai turpinātu.',
+    not_member: 'Tu neesi šīs mājsaimniecības dalībnieks.',
+    not_admin: 'Tikai administrators var to izdarīt.',
+    code_invalid: 'Nederīgs ielūguma kods.',
+    name_invalid: 'Lūdzu, ievadi derīgu nosaukumu.',
+    ai_unavailable: 'AI pašlaik nav pieejams. Pamēģini vēlāk.',
+    generic: 'Kaut kas nogāja greizi. Pamēģini vēlreiz.',
+  },
+} as const;
+
+export type Copy = typeof L;

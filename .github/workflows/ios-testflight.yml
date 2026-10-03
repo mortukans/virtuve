@@ -1,0 +1,74 @@
+name: iOS → TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      # Public app config (anon key is the publishable key). Set these as repo secrets
+      # once the Supabase project exists.
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_UNIVERSAL_LINK_HOST: virtuve.lv
+      EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+      # Apple (account-wide secrets, reusable across apps)
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+      DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+      DIST_CERT_ID: ${{ secrets.DIST_CERT_ID }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      LC_ALL: en_US.UTF-8
+      LANG: en_US.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select Xcode (SDK 57 needs Xcode 26.1/26.2)
+        run: |
+          X=$(ls -d /Applications/Xcode_26.2*.app 2>/dev/null | sort -V | tail -1)
+          [ -z "$X" ] && X=$(ls -d /Applications/Xcode_26.1*.app 2>/dev/null | sort -V | tail -1)
+          [ -z "$X" ] && { echo "No Xcode 26.1/26.2 on this runner"; exit 1; }
+          sudo xcode-select -s "$X" && xcodebuild -version
+      - name: Install JS deps
+        run: npm ci
+      - name: Typecheck + tests
+        run: npm run typecheck && npm test
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --no-install --clean
+      - name: Patch Podfile (expo/expo#50470 workaround)
+        run: ruby tools/ci/patch-podfile.rb
+      - name: Install CocoaPods
+        run: cd ios && pod install --repo-update
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: false
+      - name: Build + upload to TestFlight
+        run: |
+          gem install fastlane --no-document -q
+          fastlane ios beta
+      - name: Keep IPA + logs as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            build/*.ipa
+            fastlane/certs/*
+            ~/Library/Logs/gym/*.log
+          if-no-files-found: ignore

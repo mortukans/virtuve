@@ -1,0 +1,3 @@
+-- Seed runs on `supabase db reset` (local dev only). Households and inventory are
+-- created per authenticated user at runtime, so there is nothing to seed here.
+-- Add local demo rows below if you want sample data when developing locally.

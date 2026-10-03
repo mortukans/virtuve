@@ -1,0 +1,88 @@
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+index 6115e87..957527c 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+@@ -50,7 +50,7 @@ public:
+    `scheduleTask` dispatches through `fn`, which the host implements against
+    the real react::RuntimeScheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
++  RuntimeScheduler(void *scheduler, ScheduleFn fn) noexcept
+       : nativeScheduler(scheduler), scheduleFn(fn) {}
+ 
+   /**
+@@ -58,7 +58,7 @@ public:
+    caller's thread — intended for standalone runtimes (e.g. tests) that have
+    no React scheduler.
+    */
+-  SWIFT_RETURNS_RETAINED RuntimeScheduler() {}
++  RuntimeScheduler() {}
+ 
+   RuntimeScheduler(const RuntimeScheduler &) = delete;
+ 
+diff --git a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
+index 3d796ee..c4afff4 100644
+--- a/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
++++ b/node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/JavaScriptRuntime.swift
+@@ -185,11 +185,14 @@ open class JavaScriptRuntime: Equatable, Identifiable, @unchecked Sendable {
+       resultPtr: UnsafeMutablePointer<facebook.jsi.Value>
+     ) -> Bool {
+       let propertyName = String(cString: propertyName)
+-      nonisolated(unsafe) let resultPtr = resultPtr
++      // Patched (uzmini-cenu, expo/expo#50470): carry the call-scoped pointer across the synchronous
++      // closure as a Sendable integer; Swift 6.2.1+ rejects the `nonisolated(unsafe)` shadow.
++      let resultAddr = UInt(bitPattern: resultPtr)
+ 
+       return withGuaranteedContext(context) { (context: HostObjectContext, runtime) in
+         return JavaScriptActor.assumeIsolated {
+           return forwardingSwiftErrorsToJS(runtime: runtime) {
++            let resultPtr = unsafeBitCast(resultAddr, to: UnsafeMutablePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
+             try context.get(propertyName).writeJSIValue(to: resultPtr)
+           }
+         }
+@@ -774,15 +777,19 @@ private func createFunctionClosure(
+     // synchronous call, so the `nonisolated(unsafe)` capture is sound. This removes a per-call class
+     // allocation + retain/release + dealloc that profiling showed dominating the no-op `@JS` host-call
+     // floor.
+-    nonisolated(unsafe) let thisPtr = thisPtr
+-    nonisolated(unsafe) let argumentsPtr = argumentsPtr
+-    nonisolated(unsafe) let resultPtr = resultPtr
++    // Patched (uzmini-cenu, expo/expo#50470): see the host-object getter above.
++    let thisAddr = UInt(bitPattern: thisPtr)
++    let argumentsAddr = UInt(bitPattern: argumentsPtr)
++    let resultAddr = UInt(bitPattern: resultPtr)
+ 
+     // See `withGuaranteedContext` for why neither the context nor the runtime is retained here, and
+     // why the result is written to the caller's slot instead of being returned.
+     return withGuaranteedContext(context) { (context: HostFunctionContext, runtime) in
+       return JavaScriptActor.assumeIsolated {
+         return forwardingSwiftErrorsToJS(runtime: runtime) {
++          let thisPtr = unsafeBitCast(thisAddr, to: UnsafePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
++          let argumentsPtr = unsafeBitCast(argumentsAddr, to: UnsafePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
++          let resultPtr = unsafeBitCast(resultAddr, to: UnsafeMutablePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
+           let this = UnsafeMutablePointer(mutating: thisPtr).move()
+           let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+           let thisValue = JavaScriptValue(runtime, this)
+@@ -817,15 +824,19 @@ private func createFunctionClosure(
+     // handed in as a borrowed `JavaScriptUnownedValue` pointing straight at the C++-owned `this` slot:
+     // it is not moved out and no owning `JavaScriptValue` is allocated, so the closure avoids the
+     // per-call `weak`-runtime form/destroy and heap object that the owning `this` pays.
+-    nonisolated(unsafe) let thisPtr = thisPtr
+-    nonisolated(unsafe) let argumentsPtr = argumentsPtr
+-    nonisolated(unsafe) let resultPtr = resultPtr
++    // Patched (uzmini-cenu, expo/expo#50470): see the host-object getter above.
++    let thisAddr = UInt(bitPattern: thisPtr)
++    let argumentsAddr = UInt(bitPattern: argumentsPtr)
++    let resultAddr = UInt(bitPattern: resultPtr)
+ 
+     // See `withGuaranteedContext` for why neither the context nor the runtime is retained here, and
+     // why the result is written to the caller's slot instead of being returned.
+     return withGuaranteedContext(context) { (context: UnownedThisHostFunctionContext, runtime) in
+       return JavaScriptActor.assumeIsolated {
+         return forwardingSwiftErrorsToJS(runtime: runtime) {
++          let thisPtr = unsafeBitCast(thisAddr, to: UnsafePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
++          let argumentsPtr = unsafeBitCast(argumentsAddr, to: UnsafePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
++          let resultPtr = unsafeBitCast(resultAddr, to: UnsafeMutablePointer<facebook.jsi.Value>.self)  // null-safe, unlike bitPattern:!
+           let arguments = JavaScriptValuesBuffer(runtime, start: argumentsPtr, count: argumentsCount)
+           let thisValue = JavaScriptUnownedValue(runtime.pointee, thisPtr)
+           try context.call(thisValue, consume arguments).writeJSIValue(to: resultPtr)
