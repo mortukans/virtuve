@@ -16,7 +16,11 @@ export function adminClient(): SupabaseClient {
 }
 
 export async function requireUser(req: Request): Promise<string> {
-  const { data, error } = await userClient(req).auth.getUser();
+  const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
+  if (!token) throw new HttpError(401, 'sign_in_required');
+  // Validate the user's JWT with the service-role client (the anon/publishable key
+  // isn't reliably accepted as apikey for the auth endpoint under the new key system).
+  const { data, error } = await adminClient().auth.getUser(token);
   if (error || !data.user) throw new HttpError(401, 'sign_in_required');
   return data.user.id;
 }
