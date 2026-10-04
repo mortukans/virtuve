@@ -4,18 +4,26 @@
  * route (outside the tabs group), so it resolves the active household directly
  * rather than through the tabs' HouseholdProvider. Realtime (running under the
  * tabs) keeps the plan / requests queries live.
+ *
+ * "Virtuve dzīvo" redesign: a titled header with the week's date range and the
+ * ingredient-constellation motif, a weekday strip that marks today in saffron,
+ * the AI "Saplānot nedēļu" action, the day agenda (DaySection) and the wishes as
+ * tokens. Visual only — getMealPlan / setPlanEntry / aiPlanWeek / requests wiring
+ * is unchanged.
  */
 import React, { useMemo, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { lv } from 'date-fns/locale';
 import type { PlanEntry } from '@src/api/types';
 import { addRequest, aiPlanWeek, getMealPlan, getRequests, removeRequest } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
 import { useResolvedHousehold } from '@src/household/queries';
 import { useAction } from '@src/ui/useAction';
-import { Button, Card, Field, IconButton, ListRow, Muted, Row, Screen, SectionHeader, Spinner, Title } from '@src/ui/kit';
-import { colors, spacing } from '@src/ui/theme';
+import { Button, Card, Chip, Field, IconButton, IngredientConstellation, Muted, Row, Screen, SectionHeader, Spinner, Title } from '@src/ui/kit';
+import { colors, radius, spacing, type as t } from '@src/ui/theme';
 import { L } from '@src/i18n/lv';
 import { DaySection } from '@src/shopping/DaySection';
 
@@ -23,6 +31,9 @@ const toISO = (d: Date) => d.toISOString().slice(0, 10);
 const TODAY = toISO(new Date());
 const TODAY_PLUS6 = toISO(new Date(Date.now() + 6 * 86400000));
 const WEEK = Array.from({ length: 7 }, (_, i) => toISO(new Date(Date.now() + i * 86400000)));
+
+/** Latvian weekday initials, indexed by Date.getDay() (0 = Sunday). */
+const LV_WEEKDAY_INITIAL = ['Sv', 'P', 'O', 'T', 'C', 'P', 'S'];
 
 export default function PlanScreen() {
   const { activeId } = useResolvedHousehold();
@@ -78,11 +89,29 @@ export default function PlanScreen() {
   const requests = reqQ.data ?? [];
   const planLoading = planQ.isLoading && !planQ.data;
 
+  const rangeLabel = `${format(new Date(WEEK[0]), 'd. MMM', { locale: lv })} – ${format(new Date(WEEK[6]), 'd. MMM', { locale: lv })}`;
+
   return (
     <Screen scroll>
-      <Row gap={spacing.sm}>
+      <Row style={{ justifyContent: 'space-between' }}>
         <IconButton icon="chevron-back" onPress={() => router.back()} />
-        <Title>{L.plan.title}</Title>
+        <IngredientConstellation size={0.8} />
+      </Row>
+
+      <Title style={{ marginTop: spacing.sm }}>{L.home.weekPlan}</Title>
+      <Muted style={{ marginTop: 4 }}>{rangeLabel}</Muted>
+
+      <Row gap={spacing.xs} style={{ marginTop: spacing.lg }}>
+        {WEEK.map((iso) => {
+          const d = new Date(iso);
+          const today = iso === TODAY;
+          return (
+            <View key={iso} style={[styles.day, today ? styles.dayOn : null]}>
+              <Text style={[styles.dayLetter, today && { color: colors.accentText }]}>{LV_WEEKDAY_INITIAL[d.getDay()]}</Text>
+              <Text style={[styles.dayNum, today && { color: colors.accentText }]}>{d.getDate()}</Text>
+            </View>
+          );
+        })}
       </Row>
 
       <Button
@@ -90,7 +119,7 @@ export default function PlanScreen() {
         icon="sparkles"
         onPress={planWeek}
         disabled={planAction.busy}
-        style={{ marginTop: spacing.md }}
+        style={{ marginTop: spacing.lg }}
       />
       {planAction.busy ? (
         <Card style={{ marginTop: spacing.md }}>
@@ -125,14 +154,24 @@ export default function PlanScreen() {
         <Button label={L.common.add} onPress={addReq} disabled={!req.trim()} loading={reqAction.busy} full={false} />
       </Row>
 
-      {requests.map((r) => (
-        <ListRow
-          key={r.id}
-          title={r.text}
-          subtitle={r.requester_name}
-          right={<IconButton icon="close" onPress={() => delReq(r.id)} color={colors.textMuted} />}
-        />
-      ))}
+      {requests.length > 0 ? (
+        <View style={styles.reqWrap}>
+          {requests.map((r) => (
+            <Chip key={r.id} label={r.text} onRemove={() => delReq(r.id)} />
+          ))}
+        </View>
+      ) : null}
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  day: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3, paddingVertical: spacing.sm,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface,
+  },
+  dayOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  dayLetter: { ...t.tiny, color: colors.textMuted, letterSpacing: 0.5 },
+  dayNum: { ...t.bodyStrong, color: colors.text },
+  reqWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+});

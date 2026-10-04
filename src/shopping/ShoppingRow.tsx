@@ -1,7 +1,9 @@
 /**
- * One shopping-list row. Tap the left area to toggle "bought"; a claim toggle
- * ("Paņemšu") and an overflow menu (Nav veikalā / Dzēst) cover the rest. Each row
- * owns its mutations so the list stays independently responsive.
+ * One shopping-list row — a soft "ko" card. Tap the left area to toggle "bought";
+ * a claim toggle ("Paņemšu") and an overflow menu (Nav veikalā / Dzēst) cover the
+ * rest. Each row owns its mutations so the list stays independently responsive.
+ * In store mode the name and the check target grow for easy one-handed tapping
+ * while walking the aisles.
  */
 import React from 'react';
 import { Alert, Pressable, Text, View, type AlertButton } from 'react-native';
@@ -10,18 +12,20 @@ import type { ShoppingItem } from '@src/api/types';
 import { removeShoppingItem, updateShoppingItem } from '@src/api/rpc';
 import { useAction } from '@src/ui/useAction';
 import { Pill, Row } from '@src/ui/kit';
-import { colors, spacing, type as t } from '@src/ui/theme';
-import { L, shoppingStatusLabel } from '@src/i18n/lv';
+import { colors, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
+import { L, categoryLabel, shoppingStatusLabel } from '@src/i18n/lv';
 import { tap } from '@src/ui/haptics';
 
 export function ShoppingRow({
   item,
   myId,
   onChanged,
+  storeMode = false,
 }: {
   item: ShoppingItem;
   myId: string | null;
   onChanged: () => void;
+  storeMode?: boolean;
 }) {
   const { run, busy } = useAction();
   const bought = item.status === 'bought';
@@ -51,55 +55,88 @@ export function ShoppingRow({
     Alert.alert(item.name, item.qty_text ?? undefined, buttons);
   };
 
+  // Store mode = higher contrast, larger targets for shopping on the move.
+  const checkSize = storeMode ? 28 : 24;
+  const nameStyle = storeMode
+    ? { fontSize: 19, fontWeight: '700' as const }
+    : { fontSize: 17, fontWeight: '600' as const };
+  const padV = storeMode ? spacing.md : spacing.sm;
+
+  const subtitle = [item.qty_text, categoryLabel[item.category]].filter(Boolean).join(' · ');
+
   return (
-    <Row style={{ paddingVertical: spacing.sm, opacity: busy ? 0.5 : 1 }}>
-      <Pressable
-        onPress={toggleBought}
-        hitSlop={6}
-        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
-      >
-        <Ionicons
-          name={bought ? 'checkmark-circle' : 'ellipse-outline'}
-          size={24}
-          color={bought ? colors.accent : colors.textFaint}
-        />
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[t.body, bought && { color: colors.textFaint, textDecorationLine: 'line-through' }]}
-            numberOfLines={2}
-          >
-            {item.name}
-          </Text>
-          {item.qty_text || claimedByMe || claimedByOther || unavailable ? (
-            <Row gap={spacing.sm} style={{ marginTop: 4, flexWrap: 'wrap' }}>
-              {item.qty_text ? <Text style={t.small}>{item.qty_text}</Text> : null}
-              {!bought && claimedByMe ? (
-                <Pill label={shoppingStatusLabel.claimed} color={colors.accent} bg={colors.surfaceAlt} icon="bag-check" />
-              ) : null}
-              {!bought && claimedByOther ? (
-                <Pill label={`Paņems: ${item.claimed_by_name ?? ''}`.trim()} color={colors.blue} bg={colors.surfaceAlt} icon="bag-check" />
-              ) : null}
-              {unavailable ? (
-                <Pill label={shoppingStatusLabel.unavailable} color={colors.red} bg={colors.surfaceAlt} icon="close-circle" />
-              ) : null}
-            </Row>
-          ) : null}
-        </View>
-      </Pressable>
-
-      {!bought && !claimedByOther ? (
-        <Pressable onPress={toggleClaim} hitSlop={8} style={{ padding: 6 }}>
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.md,
+        paddingVertical: padV,
+        marginTop: spacing.sm,
+        opacity: busy ? 0.5 : bought ? 0.6 : 1,
+      }}
+    >
+      <Row gap={spacing.sm}>
+        <Pressable
+          onPress={toggleBought}
+          hitSlop={6}
+          style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 44 }}
+        >
           <Ionicons
-            name={claimedByMe ? 'bag-check' : 'bag-add-outline'}
-            size={22}
-            color={claimedByMe ? colors.accent : colors.textMuted}
+            name={bought ? 'checkmark-circle' : 'ellipse-outline'}
+            size={checkSize}
+            color={bought ? colors.herb : colors.textFaint}
           />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[nameStyle, { color: bought ? colors.textFaint : colors.text }, bought && { textDecorationLine: 'line-through' }]}
+              numberOfLines={2}
+            >
+              {item.name}
+            </Text>
+            {subtitle || claimedByMe || claimedByOther || unavailable ? (
+              <Row gap={spacing.sm} style={{ marginTop: 3, flexWrap: 'wrap' }}>
+                {subtitle ? <Text style={t.small} numberOfLines={1}>{subtitle}</Text> : null}
+                {!bought && claimedByMe ? (
+                  <Pill label={shoppingStatusLabel.claimed} color={colors.accent} bg={withAlpha(colors.accent, 0.14)} icon="bag-check" />
+                ) : null}
+                {!bought && claimedByOther ? (
+                  <Pill label={`Paņems: ${item.claimed_by_name ?? ''}`.trim()} color={colors.blue} bg={withAlpha(colors.blue, 0.14)} icon="bag-check" />
+                ) : null}
+                {unavailable ? (
+                  <Pill label={shoppingStatusLabel.unavailable} color={colors.paprika} bg={withAlpha(colors.paprika, 0.14)} icon="close-circle" />
+                ) : null}
+              </Row>
+            ) : null}
+          </View>
         </Pressable>
-      ) : null}
 
-      <Pressable onPress={openMenu} hitSlop={8} style={{ padding: 6 }}>
-        <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
-      </Pressable>
-    </Row>
+        {!bought && !claimedByOther ? (
+          <Pressable
+            onPress={toggleClaim}
+            hitSlop={8}
+            style={{
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: radius.pill,
+              backgroundColor: claimedByMe ? withAlpha(colors.accent, 0.14) : 'transparent',
+            }}
+          >
+            <Ionicons
+              name={claimedByMe ? 'bag-check' : 'bag-add-outline'}
+              size={storeMode ? 24 : 22}
+              color={claimedByMe ? colors.accent : colors.textMuted}
+            />
+          </Pressable>
+        ) : null}
+
+        <Pressable onPress={openMenu} hitSlop={8} style={{ width: 36, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="ellipsis-horizontal" size={20} color={colors.textMuted} />
+        </Pressable>
+      </Row>
+    </View>
   );
 }

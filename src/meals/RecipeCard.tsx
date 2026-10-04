@@ -1,39 +1,42 @@
 /**
- * Appetising recipe card for the "Ko ēdam?" results. Flush hero image (or a
- * typographic panel), title, summary, quick pills, "what you already have" and
- * a missing-ingredients line, with Gatavot / Pievienot trūkstošo actions.
+ * Editorial recipe card for the "Ko ēdam?" results. A large flush food image (or
+ * the typographic fallback panel) with a heart save toggle overlaid top-right,
+ * then title, summary, a row of small meta pills, "what you already have", a
+ * missing-ingredients line, and Gatavot / Pievienot trūkstošo actions.
  */
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { Recipe } from '@src/api/types';
-import { addMissingFromRecipe } from '@src/api/rpc';
+import { addMissingFromRecipe, saveRecipe } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
 import { useAction } from '@src/ui/useAction';
 import { success, tap } from '@src/ui/haptics';
-import { Button } from '@src/ui/kit';
+import { Button, Pill } from '@src/ui/kit';
 import { colors, radius, shadow, spacing, type as t } from '@src/ui/theme';
 import { L } from '@src/i18n/lv';
 import { RecipeImage } from './RecipeImage';
 
-function MetaPill({ icon, label }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string }) {
-  return (
-    <View style={styles.pill}>
-      <Ionicons name={icon} size={12} color={colors.textMuted} style={{ marginRight: 4 }} />
-      <Text style={[t.tiny, { color: colors.textMuted }]}>{label}</Text>
-    </View>
-  );
-}
-
 export function RecipeCard({ recipe, activeId }: { recipe: Recipe; activeId: string }) {
   const { run, busy } = useAction();
   const [added, setAdded] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const hasImage = !!recipe.image_url;
   const missing = recipe.missing ?? [];
   const open = () => router.push(`/meals/${recipe.id}`);
   const cook = () => router.push(`/cook/${recipe.id}`);
+
+  // Heart save toggle — optimistic, reverts if the save RPC fails.
+  const toggleSave = () => {
+    tap();
+    const next = !saved;
+    setSaved(next);
+    void saveRecipe(recipe.id, next)
+      .then(() => { if (next) success(); })
+      .catch(() => setSaved(!next));
+  };
 
   const addMissing = () =>
     run(() => addMissingFromRecipe(activeId, recipe.id), {
@@ -49,17 +52,26 @@ export function RecipeCard({ recipe, activeId }: { recipe: Recipe; activeId: str
       onPress={() => { tap(); open(); }}
       style={({ pressed }) => [styles.card, shadow.card, pressed && { opacity: 0.95, transform: [{ scale: 0.995 }] }]}
     >
-      <RecipeImage recipe={recipe} height={190} />
+      <RecipeImage recipe={recipe} height={200} rounded={false} />
+
+      <Pressable
+        onPress={toggleSave}
+        hitSlop={8}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.heart, pressed && { opacity: 0.8, transform: [{ scale: 0.92 }] }]}
+      >
+        <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={saved ? colors.heart : colors.cream} />
+      </Pressable>
 
       <View style={styles.body}>
-        {hasImage ? <Text style={t.h2} numberOfLines={2}>{recipe.title}</Text> : null}
+        {hasImage ? <Text style={t.h3} numberOfLines={2}>{recipe.title}</Text> : null}
         {recipe.summary ? <Text style={[t.small, { lineHeight: 19 }]} numberOfLines={2}>{recipe.summary}</Text> : null}
 
         <View style={styles.pills}>
-          <MetaPill icon="time-outline" label={L.meals.timeTotal(recipe.time_total_min)} />
-          <MetaPill icon="people-outline" label={L.meals.servings(recipe.servings)} />
-          {recipe.kcal != null ? <MetaPill icon="flame-outline" label={L.meals.kcal(recipe.kcal)} /> : null}
-          {recipe.est_cost_eur != null ? <MetaPill icon="pricetag-outline" label={L.meals.perPerson(recipe.est_cost_eur / Math.max(1, recipe.servings))} /> : null}
+          <Pill icon="time-outline" label={L.meals.timeTotal(recipe.time_total_min)} />
+          <Pill icon="people-outline" label={L.meals.servings(recipe.servings)} />
+          {recipe.kcal != null ? <Pill icon="flame-outline" label={L.meals.kcal(recipe.kcal)} /> : null}
+          {recipe.est_cost_eur != null ? <Pill icon="pricetag-outline" label={L.meals.perPerson(recipe.est_cost_eur / Math.max(1, recipe.servings))} /> : null}
         </View>
 
         <View style={styles.have}>
@@ -103,9 +115,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
     overflow: 'hidden',
   },
+  heart: {
+    position: 'absolute', top: spacing.sm, right: spacing.sm,
+    width: 38, height: 38, borderRadius: 19, backgroundColor: colors.overlay,
+    alignItems: 'center', justifyContent: 'center',
+  },
   body: { padding: spacing.lg, gap: spacing.sm },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: 2 },
-  pill: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceAlt, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
   have: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
 });

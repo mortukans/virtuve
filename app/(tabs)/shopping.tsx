@@ -1,10 +1,12 @@
 /**
- * Shared shopping list. Non-bought items are grouped into store sections; bought
- * items collapse to the bottom. Live across the household (realtime invalidates
- * these queries). Claim items so nobody buys the same thing twice.
+ * Shared shopping list. Action-first "Pirkumi" screen: a header store-mode toggle,
+ * an inline add composer, items grouped into store sections, and bought items that
+ * collapse to the bottom. Live across the household (realtime invalidates these
+ * queries). Claim items so nobody buys the same thing twice. Flip "Esmu veikalā"
+ * to enlarge targets while you shop.
  */
 import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import type { FoodCategory } from '@src/api/types';
@@ -16,8 +18,10 @@ import { qk, queryClient } from '@src/api/queryClient';
 import { useHouseholdCtx } from '@src/household/context';
 import { useUserId } from '@src/auth/store';
 import { useAction } from '@src/ui/useAction';
-import { Body, Button, Card, Field, Row, Screen, SectionHeader, Spinner, Title } from '@src/ui/kit';
-import { colors, spacing, type as t } from '@src/ui/theme';
+import {
+  Body, Button, Card, Chip, EmptyState, Field, Row, Screen, SectionHeader, SectionLabel, Spinner, Title,
+} from '@src/ui/kit';
+import { colors, radius, spacing } from '@src/ui/theme';
 import { L, categoryLabel } from '@src/i18n/lv';
 import { tap } from '@src/ui/haptics';
 import { CategoryPicker } from '@src/shopping/CategoryPicker';
@@ -42,6 +46,7 @@ export default function ShoppingScreen() {
 
   const [name, setName] = useState('');
   const [cat, setCat] = useState<FoodCategory>('other');
+  const [focused, setFocused] = useState(false);
   const [showBought, setShowBought] = useState(false);
 
   const addAction = useAction();
@@ -95,13 +100,23 @@ export default function ShoppingScreen() {
 
   const loading = listQ.isLoading && !listQ.data;
   const empty = !loading && items.length === 0;
+  const canAdd = !!name.trim() && !addAction.busy;
+  const showPicker = focused || name.trim().length > 0;
 
   return (
-    <Screen scroll>
-      <Title>{L.shopping.title}</Title>
+    <Screen scroll dock>
+      <Row style={{ marginBottom: spacing.sm }}>
+        <Title style={{ flex: 1 }}>Pirkumi</Title>
+        <Chip
+          label={iAmShopping ? L.shopping.leaveShop : L.shopping.atShop}
+          icon={iAmShopping ? 'checkmark-done' : 'cart'}
+          selected={iAmShopping}
+          onPress={toggleShopping}
+        />
+      </Row>
 
       {otherShopper ? (
-        <Card style={{ marginTop: spacing.md, backgroundColor: colors.surfaceAlt, borderColor: colors.accent }}>
+        <Card style={{ marginTop: spacing.sm, backgroundColor: colors.surfaceAlt, borderColor: colors.accent }}>
           <Row gap={spacing.sm}>
             <Ionicons name="cart" size={18} color={colors.accent} />
             <Body style={{ flex: 1 }}>{L.shopping.someoneShopping(otherShopper.name)}</Body>
@@ -109,35 +124,50 @@ export default function ShoppingScreen() {
         </Card>
       ) : null}
 
-      <Button
-        label={iAmShopping ? L.shopping.leaveShop : L.shopping.atShop}
-        icon={iAmShopping ? 'checkmark-done' : 'cart'}
-        variant={iAmShopping ? 'secondary' : 'primary'}
-        onPress={toggleShopping}
-        loading={shopAction.busy}
-        style={{ marginTop: spacing.md }}
-      />
+      <Row style={{ marginTop: spacing.lg, alignItems: 'flex-start' }} gap={spacing.sm}>
+        <View style={{ flex: 1 }}>
+          <Field
+            placeholder={L.shopping.addItem}
+            value={name}
+            onChangeText={setName}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            returnKeyType="done"
+            onSubmitEditing={add}
+            autoCapitalize="sentences"
+          />
+        </View>
+        <Pressable
+          onPress={() => { if (canAdd) { tap(); add(); } }}
+          disabled={!canAdd}
+          accessibilityRole="button"
+          accessibilityLabel={L.shopping.addItem}
+          style={({ pressed }) => [
+            {
+              width: 54,
+              height: 54,
+              borderRadius: radius.md,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.accent,
+            },
+            pressed && canAdd && { transform: [{ scale: 0.97 }], opacity: 0.92 },
+            !name.trim() && { opacity: 0.45 },
+          ]}
+        >
+          {addAction.busy ? (
+            <ActivityIndicator color={colors.accentText} />
+          ) : (
+            <Ionicons name="add" size={28} color={colors.accentText} />
+          )}
+        </Pressable>
+      </Row>
 
-      <Card style={{ marginTop: spacing.lg }}>
-        <Field
-          placeholder={L.shopping.namePlaceholder}
-          value={name}
-          onChangeText={setName}
-          returnKeyType="done"
-          onSubmitEditing={add}
-          autoCapitalize="sentences"
-        />
-        <Text style={[t.small, { marginBottom: 6 }]}>{L.kitchen.category}</Text>
-        <CategoryPicker value={cat} onChange={setCat} />
-        <Button
-          label={L.shopping.addItem}
-          icon="add"
-          onPress={add}
-          disabled={!name.trim()}
-          loading={addAction.busy}
-          style={{ marginTop: spacing.md }}
-        />
-      </Card>
+      {showPicker ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <CategoryPicker value={cat} onChange={setCat} />
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={{ marginTop: spacing.xl }}>
@@ -145,18 +175,17 @@ export default function ShoppingScreen() {
         </View>
       ) : null}
 
-      {empty ? (
-        <View style={{ alignItems: 'center', paddingVertical: spacing.huge }}>
-          <Ionicons name="cart-outline" size={44} color={colors.textFaint} />
-          <Text style={[t.h3, { marginTop: spacing.md }]}>{L.shopping.empty}</Text>
-        </View>
+      {empty ? <EmptyState icon="cart-outline" title={L.shopping.empty} /> : null}
+
+      {iAmShopping && groups.length > 0 ? (
+        <SectionLabel style={{ color: colors.accent, marginTop: spacing.lg }}>Paņem un atzīmē</SectionLabel>
       ) : null}
 
       {groups.map((g) => (
         <View key={g.category} style={{ marginTop: spacing.sm }}>
           <SectionHeader title={categoryLabel[g.category]} />
           {g.rows.map((item) => (
-            <ShoppingRow key={item.id} item={item} myId={myId} onChanged={invShopping} />
+            <ShoppingRow key={item.id} item={item} myId={myId} onChanged={invShopping} storeMode={iAmShopping} />
           ))}
         </View>
       ))}
@@ -167,7 +196,10 @@ export default function ShoppingScreen() {
             onPress={() => { tap(); setShowBought((v) => !v); }}
             style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm }}
           >
-            <Text style={[t.tiny, { color: colors.textFaint }]}>{L.shopping.boughtCount(bought.length).toUpperCase()}</Text>
+            <Row gap={spacing.sm}>
+              <Ionicons name="checkmark-done-circle" size={18} color={colors.herb} />
+              <SectionLabel>{L.shopping.boughtCount(bought.length)}</SectionLabel>
+            </Row>
             <Ionicons name={showBought ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textFaint} />
           </Pressable>
 

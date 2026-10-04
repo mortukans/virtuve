@@ -1,7 +1,9 @@
 /**
- * Home dashboard — the daily "ko ēdam?" hub. Greeting, who eats tonight, the big
- * "Ko ēdam šovakar?" CTA, an active-vote banner, and glanceable sections for
- * expiring food, the shopping list, this week's plan and the house favourite.
+ * Home dashboard — the daily "ko ēdam?" hub. Greeting + household name, who eats
+ * tonight, the signature saffron "Ko ēdam šovakar?" hero, a fridge-scan strip,
+ * glanceable metric cards (use-soon / shopping / plan), the active-vote banner and
+ * the house favourite. "Virtuve dzīvo" redesign — presentation only; all data
+ * wiring, queries and the attendance logic are preserved.
  */
 import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -17,8 +19,10 @@ import type { AttendanceStatus, Member } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
 import { useUserId } from '@src/auth/store';
 import { useAction } from '@src/ui/useAction';
-import { Avatar, Button, EmptyState, SectionHeader, Spinner } from '@src/ui/kit';
-import { colors, freshnessColor, radius, shadow, spacing, type as t } from '@src/ui/theme';
+import {
+  Avatar, Card, EmptyState, IngredientConstellation, MetricCard, SectionLabel, Spinner, Title,
+} from '@src/ui/kit';
+import { colors, DOCK_CLEARANCE, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { attendanceLabel, L } from '@src/i18n/lv';
 import { greetingKey, plusDaysISO, todayISO } from '@src/meals/helpers';
 import { RecipeCard } from '@src/meals/RecipeCard';
@@ -77,13 +81,6 @@ export default function Home() {
   const planned = (plan.data ?? []).filter((p) => p.status === 'planned').length;
   const favourite = favourites.data?.[0];
 
-  const inventoryEmpty = !inventory.isLoading && (inventory.data?.length ?? 0) === 0;
-  const ctaSubtitle = inventoryEmpty
-    ? household?.settings?.tone === 'humor'
-      ? 'Olas, sinepes un cerība? Nofotografē, kas tev ir.'
-      : 'Pievieno produktus vai nofotografē ledusskapi, un sāksim.'
-    : 'Izdomāsim no tā, kas tev jau ir mājās.';
-
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <ScrollView
@@ -91,86 +88,92 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
       >
-        <Text style={t.small}>{greeting}</Text>
-        <Text style={[t.h1, { marginBottom: spacing.lg }]}>{household?.name ?? L.app.name}</Text>
+        {/* Header: greeting + household name, constellation top-right */}
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[t.small, { marginBottom: spacing.xs }]}>{greeting}</Text>
+            <Title>{household?.name ?? L.app.name}</Title>
+          </View>
+          <IngredientConstellation />
+        </View>
 
-        {activeVote ? (
-          <Pressable onPress={() => router.push(`/vote/${activeVote.id}`)} style={({ pressed }) => [styles.voteBanner, pressed && { opacity: 0.9 }]}>
-            <Ionicons name="restaurant" size={22} color={colors.blue} />
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={[t.tiny, { color: colors.blue }]}>{L.vote.title.toUpperCase()}</Text>
-              <Text style={t.bodyStrong} numberOfLines={1}>{voteText}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-          </Pressable>
-        ) : null}
-
+        {/* Who eats tonight */}
         <AttendanceSection activeId={activeId} members={members} today={today} statusMap={attendance.data} />
 
-        {/* BIG CTA */}
-        <Pressable onPress={() => router.push('/meals/suggest')} style={({ pressed }) => [styles.cta, shadow.card, pressed && { opacity: 0.94 }]}>
+        {/* Signature saffron dinner hero */}
+        <Card raised onPress={() => router.push('/meals/suggest')} style={styles.hero}>
           <View style={{ flex: 1 }}>
             <Text style={[t.h1, { color: colors.accentText }]}>{L.home.whatToEat}</Text>
-            <Text style={[t.small, { color: colors.accentText, opacity: 0.8, marginTop: 4 }]}>
-              {ctaSubtitle}
+            <Text style={[t.body, { color: withAlpha(colors.accentText, 0.58), marginTop: spacing.xs }]}>
+              {L.home.composerSub}
             </Text>
           </View>
-          <View style={styles.ctaIcon}>
-            <Ionicons name="restaurant" size={30} color={colors.accentText} />
+          <View style={styles.heroMedallion}>
+            <Ionicons name="restaurant" size={28} color={colors.accentSoft} />
           </View>
-        </Pressable>
-        <Button label={L.home.scanFridge} icon="camera-outline" variant="secondary" onPress={() => router.push('/scan')} style={{ marginTop: spacing.md }} />
+        </Card>
 
-        {/* Expiring soon */}
-        <SectionHeader title={L.home.useSoon} action={urgent.length ? L.common.all : undefined} onAction={urgent.length ? () => router.push('/kitchen') : undefined} />
-        {urgent.length ? (
-          <View style={styles.chipWrap}>
-            {urgent.map((i) => (
-              <View key={i.id} style={styles.urgentChip}>
-                <View style={[styles.dot, { backgroundColor: freshnessColor(i.freshness) }]} />
-                <Text style={[t.small, { color: colors.text }]}>{i.name}</Text>
-              </View>
-            ))}
+        {/* Fridge scan strip */}
+        <Card onPress={() => router.push('/scan')} style={styles.camera}>
+          <View style={styles.cameraTile}>
+            <Ionicons name="camera-outline" size={22} color={colors.accent} />
           </View>
-        ) : (
-          <Text style={t.small}>{L.home.nothingUrgent}</Text>
-        )}
+          <View style={{ flex: 1 }}>
+            <Text style={t.bodyStrong}>{L.home.scanFridge}</Text>
+            <Text style={[t.small, { marginTop: 2 }]}>{L.home.scanHint}</Text>
+          </View>
+          <Ionicons name="arrow-up-right-box-outline" size={22} color={colors.accent} />
+        </Card>
 
-        {/* Shopping list */}
-        <SectionHeader title={L.home.shoppingList} />
-        <TappableRow
-          icon="cart-outline"
-          text={shoppingOpen > 0 ? L.shopping.itemsCount(shoppingOpen) : L.shopping.empty}
-          onPress={() => router.push('/shopping')}
-        />
+        {/* Tonight's glanceable metrics */}
+        <SectionLabel style={styles.metricsLabel}>Šovakar</SectionLabel>
+        <View style={styles.metrics}>
+          <MetricCard
+            icon="leaf"
+            tint={colors.herb}
+            title={L.home.useSoon}
+            detail={urgent.length ? L.kitchen.freshSummary(urgent.length) : L.home.nothingUrgent}
+            onPress={() => router.push('/kitchen')}
+          />
+          <MetricCard
+            icon="cart"
+            tint={colors.accent}
+            title={L.home.shoppingList}
+            detail={shoppingOpen > 0 ? L.shopping.itemsCount(shoppingOpen) : L.home.shoppingEmptyShort}
+            onPress={() => router.push('/shopping')}
+          />
+          <MetricCard
+            icon="calendar"
+            tint={colors.accentSoft}
+            title={L.home.weekPlan}
+            detail={L.home.planCount(planned, 7)}
+            onPress={() => router.push('/plan')}
+          />
+        </View>
 
-        {/* Week plan */}
-        <SectionHeader title={L.home.weekPlan} />
-        <TappableRow
-          icon="calendar-outline"
-          text={L.home.planCount(planned, 7)}
-          onPress={() => router.push('/plan')}
-        />
+        {/* Active vote in progress */}
+        {activeVote ? (
+          <Card onPress={() => router.push(`/vote/${activeVote.id}`)} style={styles.voteCard}>
+            <View style={styles.voteIcon}>
+              <Ionicons name="restaurant" size={20} color={colors.blue} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[t.tiny, { color: colors.blue }]}>{L.vote.title.toUpperCase()}</Text>
+              <Text style={[t.bodyStrong, { marginTop: 2 }]} numberOfLines={1}>{voteText}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+          </Card>
+        ) : null}
 
         {/* House favourite */}
         {favourite ? (
           <>
-            <SectionHeader title={L.home.favourite} />
+            <SectionLabel style={styles.favLabel}>{L.home.favourite}</SectionLabel>
             <RecipeCard recipe={favourite} activeId={activeId} />
           </>
         ) : null}
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function TappableRow({ icon, text, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && { opacity: 0.85 }]}>
-      <Ionicons name={icon} size={20} color={colors.accent} />
-      <Text style={[t.body, { flex: 1, marginLeft: spacing.md }]}>{text}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-    </Pressable>
   );
 }
 
@@ -191,16 +194,16 @@ function AttendanceSection({
     });
 
   return (
-    <View style={styles.attCard}>
+    <Card style={styles.tonightCard}>
       <View style={styles.attHead}>
-        <Text style={[t.tiny, { color: colors.textFaint }]}>{L.home.eatsTonight.toUpperCase()}</Text>
+        <SectionLabel>{L.home.eatsTonight}</SectionLabel>
         <Pressable onPress={() => setEditing((e) => !e)} hitSlop={8}>
-          <Text style={[t.small, { color: colors.accent }]}>{editing ? L.common.done : L.home.change}</Text>
+          <Text style={[t.small, { color: colors.accent, fontWeight: '600' }]}>{editing ? L.common.done : L.home.change}</Text>
         </Pressable>
       </View>
 
       {editing ? (
-        <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
           {members.map((m) => {
             const home = statusOf(m) === 'home';
             return (
@@ -221,46 +224,54 @@ function AttendanceSection({
         <View style={[styles.chipWrap, { marginTop: spacing.md }]}>
           {homeMembers.map((m) => (
             <View key={m.id} style={styles.homeChip}>
-              <Avatar name={m.display_name} size={26} />
+              <Avatar name={m.display_name} size={24} />
               <Text style={[t.small, { color: colors.text, marginLeft: 6 }]}>{m.display_name}</Text>
             </View>
           ))}
         </View>
       ) : (
-        <Text style={[t.small, { marginTop: spacing.sm }]}>Nosaki, kas šovakar ēd mājās.</Text>
+        <Text style={[t.small, { marginTop: spacing.sm }]}>{L.home.tonightEmpty}</Text>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingBottom: spacing.huge },
-  voteBanner: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.blue, padding: spacing.md, marginBottom: spacing.lg,
+  content: { padding: spacing.lg, paddingBottom: DOCK_CLEARANCE },
+  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.xl },
+
+  hero: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accent, borderColor: colors.accent,
+    borderRadius: radius.xl, padding: 22, marginBottom: spacing.lg,
   },
-  cta: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accent, borderRadius: radius.xl,
-    padding: spacing.xl,
+  heroMedallion: {
+    width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accentText,
+    alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md,
   },
-  ctaIcon: {
-    width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(42,26,0,0.15)', alignItems: 'center', justifyContent: 'center', marginLeft: spacing.md,
+
+  camera: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
+  cameraTile: {
+    width: 46, height: 46, borderRadius: radius.md, backgroundColor: withAlpha(colors.accent, 0.14),
+    alignItems: 'center', justifyContent: 'center',
   },
+
+  metricsLabel: { marginBottom: spacing.md },
+  metrics: { gap: spacing.sm },
+
+  voteCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginTop: spacing.xl, borderColor: withAlpha(colors.blue, 0.45),
+  },
+  voteIcon: {
+    width: 42, height: 42, borderRadius: 21, backgroundColor: withAlpha(colors.blue, 0.14),
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  favLabel: { marginTop: spacing.xl, marginBottom: spacing.md },
+
+  tonightCard: { marginBottom: spacing.lg },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  urgentChip: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.pill,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 8, gap: 8,
-  },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border, padding: spacing.lg,
-  },
-  attCard: {
-    backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
-    padding: spacing.lg, marginBottom: spacing.lg,
-  },
   attHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   attRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   attPick: { borderRadius: radius.pill, borderWidth: 1, borderColor: 'transparent', paddingHorizontal: spacing.md, paddingVertical: 7 },

@@ -8,10 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Body, Button, Card, Chip, Divider, Field, ListRow, Muted, Row, Screen, SectionHeader, Spinner, Title,
+  Body, Button, Card, Chip, Field, IconButton, IngredientConstellation, ListRow, MetricCard,
+  Muted, Row, Screen, SectionHeader, Spinner, Title,
 } from '@src/ui/kit';
-import { colors, spacing } from '@src/ui/theme';
-import { L, ratingLabel } from '@src/i18n/lv';
+import { colors, spacing, type as t, withAlpha } from '@src/ui/theme';
+import { count, L, ratingLabel } from '@src/i18n/lv';
 import { addMember, deleteMe, getHistory, getRecipes, rotateInvite, setDisplayName } from '@src/api/rpc';
 import { qk } from '@src/api/queryClient';
 import { useHouseholdCtx } from '@src/household/context';
@@ -27,6 +28,28 @@ const fmtDate = (s: string): string => {
   const p = s.slice(0, 10).split('-');
   return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : s;
 };
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+/** Big two-up action tile that toggles an inline form (invite / add child).
+ *  Lights up in its tint while its form is open (saffron = active state). */
+function ActionTile({ icon, title, tint, active, onPress }: {
+  icon: IconName; title: string; tint: string; active: boolean; onPress: () => void;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Card
+        onPress={onPress}
+        style={active ? { ...styles.tile, borderColor: tint, backgroundColor: withAlpha(tint, 0.12) } : styles.tile}
+      >
+        <View style={[styles.tileIcon, { backgroundColor: withAlpha(tint, active ? 0.24 : 0.14) }]}>
+          <Ionicons name={icon} size={22} color={tint} />
+        </View>
+        <Body style={[t.bodyStrong, { color: active ? tint : colors.text }]}>{title}</Body>
+      </Card>
+    </View>
+  );
+}
 
 export default function UsScreen() {
   const { household, activeId, households, isLoading } = useHouseholdCtx();
@@ -74,7 +97,7 @@ export default function UsScreen() {
 
   if (!household || !activeId) {
     return (
-      <Screen scroll>
+      <Screen scroll dock>
         <Title>{L.nav.us}</Title>
         <Body muted style={{ marginVertical: spacing.lg }}>{L.home.noHousehold}</Body>
         <Button label={L.home.createHousehold} icon="add" onPress={() => router.push('/household/create')} />
@@ -87,6 +110,7 @@ export default function UsScreen() {
   const recent = (historyQ.data ?? []).slice(0, 5);
   const favourites = favsQ.data ?? [];
   const saved = savedQ.data ?? [];
+  const eatsTonight = members.filter((m) => m.eats_by_default).length;
 
   const saveName = () => {
     void run(() => setDisplayName(name.trim()), {
@@ -141,9 +165,20 @@ export default function UsScreen() {
   };
 
   return (
-    <Screen scroll>
-      <Title>{household.name}</Title>
+    <Screen scroll dock>
+      {/* Header */}
+      <Row style={styles.header}>
+        <View style={{ flex: 1 }}>
+          <Title>{household.name}</Title>
+          <Muted style={{ marginTop: spacing.xs }}>
+            {count(members.length, 'mājinieks', 'mājinieki')} · šovakar ēd {eatsTonight}
+          </Muted>
+        </View>
+        <IngredientConstellation />
+        <IconButton icon="settings-outline" bg onPress={() => router.push('/household/settings')} />
+      </Row>
 
+      {/* Household switcher */}
       {households && households.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.switcher}>
           {households.map((h) => (
@@ -158,21 +193,20 @@ export default function UsScreen() {
         <MemberCard key={m.id} member={m} onPress={() => router.push(`/member/${m.id}`)} />
       ))}
 
-      <Row gap={spacing.sm} style={{ marginTop: spacing.sm }}>
-        <Button
-          full={false}
-          style={{ flex: 1 }}
-          variant="secondary"
+      {/* Add member / child */}
+      <Row gap={spacing.sm} style={styles.tiles}>
+        <ActionTile
           icon="person-add-outline"
-          label={L.household.inviteMember}
+          title={L.household.inviteMember}
+          tint={colors.accent}
+          active={showInvite}
           onPress={() => setShowInvite((v) => !v)}
         />
-        <Button
-          full={false}
-          style={{ flex: 1 }}
-          variant="secondary"
+        <ActionTile
           icon="happy-outline"
-          label={L.household.addChild}
+          title={L.household.addChild}
+          tint={colors.accentSoft}
+          active={showAddChild}
           onPress={() => setShowAddChild((v) => !v)}
         />
       </Row>
@@ -197,13 +231,44 @@ export default function UsScreen() {
         </Card>
       ) : null}
 
-      <Button
-        variant="secondary"
-        icon="settings-outline"
-        label={L.household.settings}
-        onPress={() => router.push('/household/settings')}
-        style={{ marginTop: spacing.md }}
-      />
+      {/* House */}
+      <SectionHeader title={L.household.title} />
+      <View style={{ gap: spacing.sm }}>
+        <MetricCard
+          icon="options-outline"
+          tint={colors.accent}
+          title="Mājas iestatījumi"
+          detail="Prioritātes, budžets un tonis"
+          onPress={() => router.push('/household/settings')}
+        />
+        <MetricCard
+          icon="heart-outline"
+          tint={colors.heart}
+          title="Iecienītās receptes"
+          detail={count(favourites.length, 'recepte', 'receptes')}
+        />
+        <MetricCard
+          icon="calendar-outline"
+          tint={colors.blue}
+          title="Nedēļas plāni"
+          detail={L.plan.planWeek}
+          onPress={() => router.push('/plan')}
+        />
+        <MetricCard
+          icon="cart-outline"
+          tint={colors.herb}
+          title={L.shopping.title}
+          detail="Kopīgais saraksts mājai"
+          onPress={() => router.push('/shopping')}
+        />
+        <MetricCard
+          icon="download-outline"
+          tint={colors.accentSoft}
+          title={L.meals.importTitle}
+          detail="No saites, teksta vai attēla"
+          onPress={() => router.push('/meals/import')}
+        />
+      </View>
 
       {/* Recent meals */}
       <SectionHeader title="Nesen gatavots" />
@@ -244,16 +309,8 @@ export default function UsScreen() {
         ))
       )}
 
-      <Button
-        variant="secondary"
-        icon="download-outline"
-        label={L.meals.importTitle}
-        onPress={() => router.push('/meals/import')}
-        style={{ marginTop: spacing.md }}
-      />
-
       {/* Profile */}
-      <SectionHeader title={L.member.title} />
+      <SectionHeader title="Profils" />
       <Field label={L.member.displayName} value={name} onChangeText={setName} placeholder={L.member.displayName} />
       <Button label={L.common.save} onPress={saveName} loading={busy} />
 
@@ -273,13 +330,18 @@ export default function UsScreen() {
         />
       ) : null}
 
-      <Divider />
-      <Button variant="ghost" icon="log-out-outline" label={L.auth.signOut} onPress={confirmSignOut} />
+      {/* Account */}
+      <SectionHeader title="Konts" />
+      <Button variant="secondary" icon="log-out-outline" label={L.auth.signOut} onPress={confirmSignOut} />
       <Button variant="danger" icon="trash-outline" label={L.auth.deleteAccount} onPress={confirmDelete} style={{ marginTop: spacing.sm }} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: { marginBottom: spacing.sm },
   switcher: { gap: spacing.sm, paddingVertical: spacing.sm },
+  tiles: { marginTop: spacing.sm, alignItems: 'stretch' },
+  tile: { minHeight: 116, gap: spacing.md, justifyContent: 'flex-start' },
+  tileIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 });

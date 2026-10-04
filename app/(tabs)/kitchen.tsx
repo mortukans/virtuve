@@ -1,20 +1,23 @@
 /**
- * "Mūsu virtuve" — the household inventory. Items are grouped by where they live
- * (fridge / freezer / pantry / staples). A highlighted "Jāizlieto drīz" card
- * surfaces anything about to go off with a one-tap jump to meal suggestions. The
- * "+" reveals add options: photo scan, gallery scan, a manual form, and the
- * always-at-home staples editor.
+ * "Mūsu virtuve" — the household inventory, designer "Virtuve dzīvo" layout.
+ * A big header (title + saffron fresh-summary + the ingredient constellation),
+ * a signature saffron "scan the fridge" tile, a highlighted "Jāizlieto drīz"
+ * rescue card, and the inventory itself as a two-column pantry grid of emoji
+ * tiles grouped by where things live (fridge / freezer / pantry / staples).
+ * The "+" reveals add options: photo scan, gallery scan, a manual form, the
+ * always-at-home staples editor and the leftovers transformer. All data wiring
+ * (queries, mutations, navigation) is unchanged — this is a visual pass.
  */
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Body, Button, Card, EmptyState, H2, IconButton, ListRow, Muted, Pill, Row, Screen,
-  SectionHeader, Spinner, Title,
+  Body, Button, Card, EmptyState, H2, IconButton, IngredientConstellation, ListRow, Muted, Pill,
+  Row, Screen, SectionLabel, Spinner, Title,
 } from '@src/ui/kit';
-import { colors, freshnessColor, spacing } from '@src/ui/theme';
+import { colors, freshnessColor, radius, spacing, withAlpha } from '@src/ui/theme';
 import { freshnessLabel, locationLabel, L } from '@src/i18n/lv';
 import { addInventoryItems, getInventory, setStaples } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
@@ -66,15 +69,27 @@ export default function KitchenScreen() {
   const staples = list.filter((i) => i.location === 'staple').map((i) => i.name);
 
   return (
-    <Screen scroll>
-      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-        <Title>{L.kitchen.title}</Title>
-        <IconButton icon={addOpen ? 'close' : 'add'} onPress={() => setAddOpen((o) => !o)} />
+    <Screen scroll dock>
+      <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
+          <Title>{L.kitchen.title}</Title>
+          <Body style={{ color: colors.accent, fontWeight: '700', marginTop: spacing.xs }}>
+            {urgent.length ? L.kitchen.freshSummary(urgent.length) : L.kitchen.allFresh}
+          </Body>
+        </View>
+        <Row gap={spacing.xs}>
+          <IngredientConstellation />
+          <IconButton icon={addOpen ? 'close' : 'add'} onPress={() => setAddOpen((o) => !o)} bg />
+        </Row>
       </Row>
 
       {addOpen ? (
         <AddPanel activeId={activeId} staples={staples} onClose={() => setAddOpen(false)} />
-      ) : null}
+      ) : (
+        <ScanTile />
+      )}
+
+      {urgent.length > 0 ? <UrgentCard items={urgent} /> : null}
 
       {list.length === 0 && !addOpen ? (
         <EmptyState
@@ -85,26 +100,46 @@ export default function KitchenScreen() {
         />
       ) : null}
 
-      {urgent.length > 0 ? <UrgentCard items={urgent} /> : null}
-
       {GROUP_ORDER.map((loc) => {
         const group = list.filter((i) => i.location === loc).sort(bySeverity);
         if (group.length === 0) return null;
         return (
-          <View key={loc}>
-            <SectionHeader title={`${locationLabel[loc]} · ${L.kitchen.itemsCount(group.length)}`} />
-            <Card style={{ paddingVertical: spacing.xs }}>
-              {group.map((it, i) => (
-                <View key={it.id}>
-                  {i > 0 ? <View style={styles.sep} /> : null}
-                  <ItemRow item={it} activeId={activeId} />
-                </View>
+          <View key={loc} style={{ marginBottom: spacing.xs }}>
+            <SectionLabel style={styles.sectionLabel}>
+              {`${locationLabel[loc]} · ${L.kitchen.itemsCount(group.length)}`}
+            </SectionLabel>
+            <View style={styles.grid}>
+              {group.map((it) => (
+                <ItemRow key={it.id} item={it} activeId={activeId} />
               ))}
-            </Card>
+            </View>
           </View>
         );
       })}
+
+      {list.length > 0 && !addOpen ? (
+        <Button label={L.kitchen.addItems} icon="add" onPress={() => setAddOpen(true)} style={{ marginTop: spacing.xl }} />
+      ) : null}
     </Screen>
+  );
+}
+
+// ─── signature scan tile ───────────────────────────────────────────────────────
+
+function ScanTile() {
+  return (
+    <Card onPress={() => router.push('/scan')} style={styles.scanTile}>
+      <Row gap={spacing.md}>
+        <View style={styles.scanIcon}>
+          <Ionicons name="scan" size={28} color={colors.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.scanTitle}>{L.kitchen.scanTile}</Text>
+          <Text style={styles.scanSub}>{L.kitchen.scanTileSub}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={22} color={withAlpha(colors.accentText, 0.55)} />
+      </Row>
+    </Card>
   );
 }
 
@@ -113,13 +148,15 @@ export default function KitchenScreen() {
 function UrgentCard({ items }: { items: InventoryItem[] }) {
   const shown = items.slice(0, 6);
   return (
-    <Card style={{ borderColor: colors.orange, marginBottom: spacing.lg }}>
-      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
+    <Card style={{ borderColor: withAlpha(colors.paprika, 0.55), marginBottom: spacing.lg }}>
+      <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
         <Row gap={spacing.sm}>
-          <Ionicons name="alert-circle" size={18} color={colors.orange} />
+          <View style={styles.urgentIcon}>
+            <Ionicons name="alert-circle" size={18} color={colors.paprika} />
+          </View>
           <H2 style={{ fontSize: 18 }}>{L.home.useSoon}</H2>
         </Row>
-        <Pill label={L.kitchen.itemsCount(items.length)} color={colors.orange} />
+        <Pill label={L.kitchen.itemsCount(items.length)} color={colors.paprika} bg={withAlpha(colors.paprika, 0.15)} />
       </Row>
       <Muted style={{ marginBottom: spacing.md }}>{L.kitchen.saveFridgeBody(items.length)}</Muted>
       <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
@@ -218,5 +255,12 @@ function StaplesEditor({ activeId, initial, onClose }: { activeId: string; initi
 }
 
 const styles = StyleSheet.create({
+  scanTile: { backgroundColor: colors.accent, borderColor: colors.accent, borderRadius: radius.xl, marginBottom: spacing.lg },
+  scanIcon: { width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.accentText, alignItems: 'center', justifyContent: 'center' },
+  scanTitle: { fontSize: 18, fontWeight: '800', color: colors.accentText, letterSpacing: -0.3 },
+  scanSub: { fontSize: 14, fontWeight: '500', color: withAlpha(colors.accentText, 0.72), marginTop: 2 },
+  sectionLabel: { marginTop: spacing.xl, marginBottom: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  urgentIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: withAlpha(colors.paprika, 0.15), alignItems: 'center', justifyContent: 'center' },
   sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
 });

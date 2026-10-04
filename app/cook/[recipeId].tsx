@@ -1,7 +1,11 @@
 /**
- * Cook mode. A focused, full-screen flow: prep (ingredient checklist) → one big
- * step at a time (with optional in-app timers) → "would you cook it again?" rating
- * with feedback chips + notes → offer to mark the used products as consumed.
+ * Cook mode — focused full-screen flow ("Virtuve dzīvo" redesign).
+ *
+ * Top: round back + a saffron step-progress indicator. Body: a warm step block
+ * with the big step number and the instruction as a large heading, optional timer,
+ * and a help affordance. Bottom: one big primary to advance ("Tālāk" → "Pabeigt").
+ * Flow: prep (ingredient checklist) → step-by-step → rating + feedback → mark used.
+ * Visual only — stepping, timers, the help modal and the rateMeal flow are preserved.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -14,8 +18,8 @@ import { qk, queryClient } from '@src/api/queryClient';
 import type { MealRating } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
 import { useAction } from '@src/ui/useAction';
-import { Button, Chip, EmptyState, Field, IconButton, Spinner } from '@src/ui/kit';
-import { colors, radius, spacing, type as t } from '@src/ui/theme';
+import { Button, Chip, EmptyState, Field, IconButton, SectionLabel, Spinner } from '@src/ui/kit';
+import { colors, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { feedbackLabel, L, ratingLabel } from '@src/i18n/lv';
 import { impact, success } from '@src/ui/haptics';
 
@@ -92,19 +96,36 @@ export default function Cook() {
       onDone: (res) => { success(); setHelpA(res.answer); },
     });
 
-  const progress = phase === 'cook' ? (stepIdx + 1) / Math.max(1, total) : phase === 'prep' ? 0 : 1;
+  // Back unwinds the flow: cook steps → prep → exit; rate/used → exit (as before).
+  const onBack = () => {
+    if (phase === 'cook') { if (stepIdx > 0) setStepIdx(stepIdx - 1); else setPhase('prep'); return; }
+    router.back();
+  };
+
+  const topLabel = phase === 'cook' ? L.cook.step(stepIdx + 1, total) : phase === 'prep' ? L.cook.prep : L.cook.title;
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.topBar}>
-        <Text style={t.small} numberOfLines={1}>
-          {phase === 'cook' ? L.cook.step(stepIdx + 1, total) : phase === 'prep' ? L.cook.prep : L.cook.title}
-        </Text>
-        <IconButton icon="close" onPress={() => router.back()} />
+        <IconButton icon="chevron-back" bg onPress={onBack} />
+        <View style={styles.topCenter}>
+          {phase === 'cook' ? (
+            <View style={styles.dots}>
+              {steps.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i < stepIdx ? styles.dotDone : i === stepIdx ? styles.dotActive : styles.dotOff,
+                  ]}
+                />
+              ))}
+            </View>
+          ) : null}
+          <Text style={styles.topLabel} numberOfLines={1}>{topLabel}</Text>
+        </View>
+        <View style={styles.topSpacer} />
       </View>
-      {phase === 'cook' || phase === 'prep' ? (
-        <View style={styles.track}><View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} /></View>
-      ) : null}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {phase === 'prep' ? (
@@ -113,8 +134,10 @@ export default function Cook() {
             <Text style={[t.small, { marginBottom: spacing.lg }]}>{L.cook.prep}</Text>
             {recipe.ingredients.map((i, idx) => (
               <View key={idx} style={styles.ing}>
-                <Ionicons name={i.have ? 'checkmark-circle' : 'ellipse-outline'} size={18} color={i.have ? colors.green : colors.textFaint} />
-                <Text style={[t.body, { flex: 1, marginLeft: spacing.sm }]}>{i.name}</Text>
+                <View style={styles.ingDot}>
+                  <Ionicons name={i.have ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={i.have ? colors.herb : colors.textFaint} />
+                </View>
+                <Text style={[t.body, { flex: 1 }]}>{i.name}</Text>
                 <Text style={t.small}>{i.qty}</Text>
               </View>
             ))}
@@ -123,16 +146,21 @@ export default function Cook() {
 
         {phase === 'cook' && step ? (
           <>
+            <View style={styles.stepCard}>
+              <View style={styles.stepGlow} />
+              <Text style={styles.stepCardNum}>{step.n}</Text>
+              <SectionLabel style={{ marginTop: spacing.xs }}>Solis</SectionLabel>
+            </View>
             <Text style={styles.stepText}>{step.text}</Text>
             {step.timer_min ? (
-              <View style={{ marginTop: spacing.xl, alignItems: 'center' }}>
+              <View style={styles.timerWrap}>
                 {timerLeft !== null ? (
                   <>
                     <Text style={styles.timer}>{fmt(timerLeft)}</Text>
                     <Button label="Apturēt" variant="secondary" full={false} onPress={() => { stopTimer(); setTimerLeft(null); }} />
                   </>
                 ) : (
-                  <Button label={L.cook.startTimer(step.timer_min)} icon="timer-outline" full={false} onPress={() => startTimer(step.timer_min!)} />
+                  <Button label={L.cook.startTimer(step.timer_min)} icon="timer-outline" variant="secondary" full={false} onPress={() => startTimer(step.timer_min!)} />
                 )}
               </View>
             ) : null}
@@ -142,9 +170,9 @@ export default function Cook() {
         {phase === 'rate' ? (
           <>
             <Text style={[t.h1, { marginBottom: spacing.xs }]}>{L.cook.finished}</Text>
-            <Text style={[t.body, { marginBottom: spacing.lg }]}>{L.cook.rateQuestion}</Text>
+            <Text style={[t.body, { color: colors.textMuted, marginBottom: spacing.xl }]}>{L.cook.rateQuestion}</Text>
 
-            <Text style={[t.small, { marginBottom: spacing.sm }]}>{L.cook.feedbackTitle}</Text>
+            <SectionLabel style={{ marginBottom: spacing.sm }}>{L.cook.feedbackTitle}</SectionLabel>
             <View style={styles.wrap}>
               {feedbackKeys.map((k) => (
                 <Chip key={k} label={feedbackLabel[k]} selected={selectedFeedback.includes(k)} onPress={() => toggleFeedback(k)} />
@@ -166,7 +194,7 @@ export default function Cook() {
         {phase === 'used' ? (
           <>
             <Text style={[t.h1, { marginBottom: spacing.xs }]}>{L.kitchen.markUsed}</Text>
-            <Text style={[t.body, { marginBottom: spacing.xl }]}>Vai atzīmēt izmantotos produktus kā izlietotus virtuvē?</Text>
+            <Text style={[t.body, { color: colors.textMuted, marginBottom: spacing.xl }]}>Vai atzīmēt izmantotos produktus kā izlietotus virtuvē?</Text>
             <View style={{ gap: spacing.sm }}>
               <Button label="Atzīmēt kā izlietotus" icon="checkmark-done" loading={usedBusy} onPress={markAllUsed} />
               <Button label={L.common.skip} variant="ghost" onPress={finish} />
@@ -188,17 +216,12 @@ export default function Cook() {
       ) : null}
 
       {phase === 'cook' ? (
-        <View style={[styles.footer, styles.footerRow]}>
-          <View style={{ flex: 1 }}>
-            <Button label={L.common.back} variant="secondary" onPress={() => { if (stepIdx > 0) setStepIdx(stepIdx - 1); else setPhase('prep'); }} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button
-              label={stepIdx < total - 1 ? L.common.next : L.cook.finish}
-              icon={stepIdx < total - 1 ? 'arrow-forward' : 'checkmark'}
-              onPress={() => { if (stepIdx < total - 1) setStepIdx(stepIdx + 1); else setPhase('rate'); }}
-            />
-          </View>
+        <View style={styles.footer}>
+          <Button
+            label={stepIdx < total - 1 ? L.common.next : L.cook.finish}
+            icon={stepIdx < total - 1 ? 'arrow-forward' : 'checkmark'}
+            onPress={() => { if (stepIdx < total - 1) setStepIdx(stepIdx + 1); else setPhase('rate'); }}
+          />
         </View>
       ) : null}
 
@@ -240,16 +263,26 @@ export default function Cook() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm } as object,
-  track: { height: 3, backgroundColor: colors.surfaceAlt, marginHorizontal: spacing.lg, borderRadius: 2, overflow: 'hidden' },
-  fill: { height: 3, backgroundColor: colors.accent },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  topCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  topSpacer: { width: 44 },
+  topLabel: { ...t.small, textAlign: 'center' },
+  dots: { flexDirection: 'row', alignSelf: 'stretch', marginBottom: 7 },
+  dot: { flex: 1, height: 5, borderRadius: 3, marginHorizontal: 2 },
+  dotDone: { backgroundColor: withAlpha(colors.accent, 0.5) },
+  dotActive: { backgroundColor: colors.accent },
+  dotOff: { backgroundColor: colors.surfaceHigh },
   content: { padding: spacing.lg, paddingBottom: spacing.huge, flexGrow: 1 },
-  ing: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  stepText: { fontSize: 26, lineHeight: 36, fontWeight: '600', color: colors.text, marginTop: spacing.lg },
+  ing: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  ingDot: { width: 28, alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs },
+  stepCard: { height: 132, borderRadius: radius.lg, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: spacing.sm },
+  stepGlow: { position: 'absolute', top: -46, right: -34, width: 180, height: 180, borderRadius: 90, backgroundColor: colors.accent, opacity: 0.14 },
+  stepCardNum: { fontSize: 66, fontWeight: '800', color: colors.accent, letterSpacing: -2 },
+  stepText: { fontSize: 27, lineHeight: 36, fontWeight: '700', color: colors.text, letterSpacing: -0.3, marginTop: spacing.xl },
+  timerWrap: { marginTop: spacing.xl, alignItems: 'center', gap: spacing.md },
   timer: { fontSize: 56, fontWeight: '800', color: colors.accent, letterSpacing: -1, marginBottom: spacing.md },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   footer: { padding: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
-  footerRow: { flexDirection: 'row', gap: spacing.sm },
   helpWrap: { alignItems: 'center', marginTop: spacing.xl },
   modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   modalCard: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl },

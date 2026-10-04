@@ -1,17 +1,18 @@
 /**
  * Household settings — priorities, cooking love, equipment, budget and tone.
- * Admins edit; everyone else sees a read-only view with a note.
+ * Admins edit; everyone else sees a read-only view with a note. Any member can
+ * leave the household from the bottom of the screen.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import { Alert, StyleSheet, Switch, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Body, Button, Card, Chip, Field, H2, IconButton, Muted, Row, Screen, SectionHeader, Segmented, Spinner,
+  Body, Button, Card, Chip, Divider, Field, H2, IconButton, Muted, Row, Screen, SectionLabel, Segmented, Spinner,
 } from '@src/ui/kit';
 import { colors, spacing } from '@src/ui/theme';
 import { L, cookingLoveLabel, equipmentLabel, priorityLabel } from '@src/i18n/lv';
-import { updateHousehold } from '@src/api/rpc';
+import { leaveHousehold, updateHousehold } from '@src/api/rpc';
 import { qk } from '@src/api/queryClient';
 import type { CookingLove, HouseholdSettings } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
@@ -93,9 +94,27 @@ export default function HouseholdSettingsScreen() {
     });
   };
 
+  const confirmLeave = () => {
+    Alert.alert('', `${L.household.leave}?`, [
+      { text: L.common.cancel, style: 'cancel' },
+      {
+        text: L.household.leave,
+        style: 'destructive',
+        onPress: () => {
+          void run(() => leaveHousehold(activeId), {
+            onDone: () => {
+              void qc.invalidateQueries({ queryKey: qk.households });
+              router.back();
+            },
+          });
+        },
+      },
+    ]);
+  };
+
   return (
     <Screen scroll>
-      <Row gap={spacing.sm} style={{ marginBottom: spacing.sm }}>
+      <Row style={{ marginBottom: spacing.lg }}>
         <IconButton icon="chevron-back" onPress={() => router.back()} />
         <H2>{L.household.settings}</H2>
       </Row>
@@ -107,63 +126,73 @@ export default function HouseholdSettingsScreen() {
       ) : null}
 
       <View pointerEvents={canEdit ? 'auto' : 'none'} style={!canEdit ? { opacity: 0.6 } : undefined}>
-        <Field label={L.household.title} value={form.name} onChangeText={(v) => patch({ name: v })} editable={canEdit} />
+        <SectionLabel style={styles.sec}>{L.household.title}</SectionLabel>
+        <Field value={form.name} onChangeText={(v) => patch({ name: v })} editable={canEdit} placeholder={L.household.namePlaceholder} />
 
-        <SectionHeader title={L.household.priorities} />
-        {PRIORITY_KEYS.map((k) => (
-          <PrioritySetting
-            key={k}
-            label={priorityLabel[k]}
-            value={form.priorities[k]}
-            onChange={(v) => patch({ priorities: { ...form.priorities, [k]: v } })}
-          />
-        ))}
+        <SectionLabel style={styles.sec}>{L.household.priorities}</SectionLabel>
+        <Card>
+          {PRIORITY_KEYS.map((k) => (
+            <PrioritySetting
+              key={k}
+              label={priorityLabel[k]}
+              value={form.priorities[k]}
+              onChange={(v) => patch({ priorities: { ...form.priorities, [k]: v } })}
+            />
+          ))}
+        </Card>
 
-        <SectionHeader title={L.onboarding.cookingLoveTitle} />
+        <SectionLabel style={styles.sec}>{L.onboarding.cookingLoveTitle}</SectionLabel>
         <ChoiceList<CookingLove>
           options={COOKING_LOVE_KEYS.map((k) => ({ value: k, label: cookingLoveLabel[k] }))}
           value={form.cooking_love}
           onChange={(v) => patch({ cooking_love: v })}
         />
 
-        <SectionHeader title={L.household.equipment} />
+        <SectionLabel style={styles.sec}>{L.household.equipment}</SectionLabel>
         <View style={styles.wrap}>
           {EQUIPMENT_KEYS.map((k) => (
             <Chip key={k} label={equipmentLabel[k]} selected={form.equipment.includes(k)} onPress={() => toggleEquipment(k)} />
           ))}
         </View>
 
-        <SectionHeader title={L.household.budget} />
-        <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm }}>
-          <Body>{form.budgetOn ? L.household.budget : L.household.budgetOff}</Body>
-          <Switch
-            value={form.budgetOn}
-            onValueChange={(v) => patch({ budgetOn: v })}
-            trackColor={{ true: colors.accent, false: colors.border }}
-            thumbColor={colors.text}
-          />
-        </Row>
-        {form.budgetOn ? (
-          <Field
-            value={form.budgetText}
-            onChangeText={(v) => patch({ budgetText: v })}
-            placeholder="€ / nedēļā"
-            keyboardType="numeric"
-            editable={canEdit}
-          />
-        ) : null}
+        <SectionLabel style={styles.sec}>{L.household.budget}</SectionLabel>
+        <Card>
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Body>{form.budgetOn ? L.household.budget : L.household.budgetOff}</Body>
+            <Switch
+              value={form.budgetOn}
+              onValueChange={(v) => patch({ budgetOn: v })}
+              trackColor={{ true: colors.accent, false: colors.border }}
+              thumbColor={colors.text}
+            />
+          </Row>
+          {form.budgetOn ? (
+            <Field
+              value={form.budgetText}
+              onChangeText={(v) => patch({ budgetText: v })}
+              placeholder="€ / nedēļā"
+              keyboardType="numeric"
+              editable={canEdit}
+              style={{ marginTop: spacing.md }}
+            />
+          ) : null}
+        </Card>
 
-        <SectionHeader title={L.household.tone} />
+        <SectionLabel style={styles.sec}>{L.household.tone}</SectionLabel>
         <Segmented<Tone> options={TONE_OPTIONS} value={form.tone} onChange={(v) => patch({ tone: v })} />
       </View>
 
       {canEdit ? (
         <Button label={L.common.save} onPress={save} loading={busy} style={{ marginTop: spacing.xl }} />
       ) : null}
+
+      <Divider />
+      <Button variant="danger" icon="exit-outline" label={L.household.leave} onPress={confirmLeave} loading={busy} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  sec: { marginTop: spacing.xl, marginBottom: spacing.md },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 });

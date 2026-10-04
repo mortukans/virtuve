@@ -8,7 +8,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Button, EmptyState, IconButton, Muted, Row, Screen, SectionHeader, Spinner, Title } from '@src/ui/kit';
+import { Button, EmptyState, IconButton, IngredientConstellation, Muted, Row, Screen, SectionHeader, Spinner, Title } from '@src/ui/kit';
 import { spacing } from '@src/ui/theme';
 import { L } from '@src/i18n/lv';
 import { addInventoryItems, aiScan } from '@src/api/rpc';
@@ -139,11 +139,12 @@ export default function ScanScreen() {
     <Screen scroll>
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.md }}>
         <Title>{L.scan.title}</Title>
-        <IconButton icon="close" onPress={() => router.back()} />
+        <IconButton icon="close" onPress={() => router.back()} bg />
       </Row>
 
       {status === 'picking' || status === 'scanning' ? (
-        <View style={{ paddingVertical: spacing.huge }}>
+        <View style={{ paddingVertical: spacing.huge, alignItems: 'center', gap: spacing.lg }}>
+          <IngredientConstellation size={1.6} />
           <Spinner label={L.scan.scanning} />
         </View>
       ) : null}

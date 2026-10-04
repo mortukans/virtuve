@@ -31,7 +31,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: BUNDLE_ID,
-    adaptiveIcon: { backgroundColor: '#12140F', foregroundImage: './assets/icon.png' },
+    adaptiveIcon: { backgroundColor: '#0C100D', foregroundImage: './assets/icon.png' },
     intentFilters: [
       {
         action: 'VIEW',
@@ -49,8 +49,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-apple-authentication',
     ['expo-image-picker', { photosPermission: 'Virtuve izmanto fotoattēlus, lai atpazītu produktus.' }],
     ['expo-camera', { cameraPermission: 'Virtuve izmanto kameru, lai nofotografētu ledusskapi.' }],
-    ['expo-splash-screen', { backgroundColor: '#12140F', image: './assets/splash-icon.png', imageWidth: 180 }],
-    ['expo-notifications', { color: '#F2A33C' }],
+    ['expo-splash-screen', { backgroundColor: '#0C100D', image: './assets/splash-icon.png', imageWidth: 180 }],
+    ['expo-notifications', { color: '#FFB43E' }],
   ],
   experiments: { typedRoutes: false },
   extra: { eas: { projectId: process.env.EAS_PROJECT_ID } },
