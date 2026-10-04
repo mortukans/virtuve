@@ -305,4 +305,13 @@ export interface MealQuery {
   prioritise_expiring?: boolean;
   /** Cheap mode: maximise use of what's already home. */
   cheap?: boolean;
+  /** An inventory item name the recipes must use ("izmantot šo šovakar"). */
+  focus?: string;
+  /** A craving/texture mood, e.g. "krēmīgs", "ass", "svaigs". */
+  craving?: string;
+  /** Extra guests tonight on top of the eaters. */
+  guests?: number;
 }
+
+/** Recipe transformations offered on a recipe. */
+export type TransformKey = 'healthier' | 'cheaper' | 'faster' | 'vegetarian' | 'air_fryer' | 'more_portions';

@@ -100,7 +100,7 @@ export function ItemRow({ item, activeId }: { item: InventoryItem; activeId: str
 
       {mode === 'actions' ? (
         <View style={{ paddingBottom: spacing.md, gap: spacing.sm }}>
-          <Button label={L.kitchen.useThis} icon="restaurant-outline" onPress={() => router.push('/meals/suggest')} />
+          <Button label={L.kitchen.useThis} icon="restaurant-outline" onPress={() => router.push(`/meals/suggest?focus=${encodeURIComponent(item.name)}`)} />
           <Muted style={{ marginTop: spacing.xs }}>{L.kitchen.markUsed}</Muted>
           <Row gap={spacing.sm}>
             <Button label={L.kitchen.usedAll} variant="secondary" onPress={() => doMarkUsed('all')} loading={busy} style={{ flex: 1 }} />

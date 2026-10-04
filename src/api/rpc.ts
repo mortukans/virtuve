@@ -170,3 +170,15 @@ export const aiImportRecipe = (
   p_household: string,
   p_payload: { kind: 'url' | 'text' | 'image'; data: string },
 ) => invoke<{ recipe: Recipe }>('ai-import', { household: p_household, payload: p_payload });
+
+/** Transform a recipe (healthier/cheaper/faster/vegetarian/air fryer/bigger) into a new one. */
+export const aiTransform = (p_recipe: string, p_transform: import('./types').TransformKey) =>
+  invoke<{ recipe: Recipe }>('ai-transform', { recipe: p_recipe, transform: p_transform });
+
+/** Turn leftovers into 3 new meal ideas. */
+export const aiLeftovers = (p_household: string, p_items: string[], p_eaters: string[] = []) =>
+  invoke<{ recipes: Recipe[] }>('ai-leftovers', { household: p_household, items: p_items, eaters: p_eaters });
+
+/** Ask a cooking question during cook mode; returns short Latvian advice. */
+export const aiCookHelp = (p_question: string, p_recipe: string | null = null) =>
+  invoke<{ answer: string }>('ai-cook-help', { recipe: p_recipe, question: p_question });

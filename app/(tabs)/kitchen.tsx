@@ -132,7 +132,7 @@ function UrgentCard({ items }: { items: InventoryItem[] }) {
         ))}
         {items.length > shown.length ? <Muted>{`+ vēl ${items.length - shown.length}`}</Muted> : null}
       </View>
-      <Button label={L.kitchen.saveFridge} icon="sparkles" onPress={() => router.push('/meals/suggest')} />
+      <Button label={L.kitchen.saveFridge} icon="sparkles" onPress={() => router.push('/meals/suggest?expiring=1')} />
     </Card>
   );
 }
@@ -153,6 +153,8 @@ function AddPanel({ activeId, staples, onClose }: { activeId: string; staples: s
           <AddOption icon="create-outline" label={L.kitchen.addManual} onPress={() => setView('manual')} />
           <View style={styles.sep} />
           <AddOption icon="star-outline" label={L.kitchen.staplesTitle} onPress={() => setView('staples')} />
+          <View style={styles.sep} />
+          <AddOption icon="restaurant-outline" label={L.meals.transformLeftovers} onPress={() => router.push('/meals/leftovers')} />
         </View>
       ) : view === 'manual' ? (
         <View>

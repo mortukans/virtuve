@@ -64,6 +64,11 @@ export default function UsScreen() {
     queryFn: () => getRecipes(activeId as string, 'favourites'),
     enabled: !!activeId,
   });
+  const savedQ = useQuery({
+    queryKey: activeId ? qk.recipes(activeId, 'saved') : ['recipes', 'none-saved'],
+    queryFn: () => getRecipes(activeId as string, 'saved'),
+    enabled: !!activeId,
+  });
 
   if (isLoading) return <Screen><Spinner label={L.common.loading} /></Screen>;
 
@@ -81,6 +86,7 @@ export default function UsScreen() {
   const members = household.members ?? [];
   const recent = (historyQ.data ?? []).slice(0, 5);
   const favourites = favsQ.data ?? [];
+  const saved = savedQ.data ?? [];
 
   const saveName = () => {
     void run(() => setDisplayName(name.trim()), {
@@ -222,6 +228,29 @@ export default function UsScreen() {
           <ListRow key={r.id} title={r.title} subtitle={r.summary || undefined} />
         ))
       )}
+
+      {/* Saved recipes */}
+      <SectionHeader title="Saglabātās receptes" />
+      {saved.length === 0 ? (
+        <Muted>Vēl nav saglabātu recepšu.</Muted>
+      ) : (
+        saved.map((r) => (
+          <ListRow
+            key={r.id}
+            title={r.title}
+            subtitle={r.summary || undefined}
+            onPress={() => router.push(`/meals/${r.id}`)}
+          />
+        ))
+      )}
+
+      <Button
+        variant="secondary"
+        icon="download-outline"
+        label={L.meals.importTitle}
+        onPress={() => router.push('/meals/import')}
+        style={{ marginTop: spacing.md }}
+      />
 
       {/* Profile */}
       <SectionHeader title={L.member.title} />

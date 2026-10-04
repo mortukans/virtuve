@@ -77,6 +77,13 @@ export default function Home() {
   const planned = (plan.data ?? []).filter((p) => p.status === 'planned').length;
   const favourite = favourites.data?.[0];
 
+  const inventoryEmpty = !inventory.isLoading && (inventory.data?.length ?? 0) === 0;
+  const ctaSubtitle = inventoryEmpty
+    ? household?.settings?.tone === 'humor'
+      ? 'Olas, sinepes un cerība? Nofotografē, kas tev ir.'
+      : 'Pievieno produktus vai nofotografē ledusskapi, un sāksim.'
+    : 'Izdomāsim no tā, kas tev jau ir mājās.';
+
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
       <ScrollView
@@ -105,7 +112,7 @@ export default function Home() {
           <View style={{ flex: 1 }}>
             <Text style={[t.h1, { color: colors.accentText }]}>{L.home.whatToEat}</Text>
             <Text style={[t.small, { color: colors.accentText, opacity: 0.8, marginTop: 4 }]}>
-              Izdomāsim no tā, kas tev jau ir mājās.
+              {ctaSubtitle}
             </Text>
           </View>
           <View style={styles.ctaIcon}>

@@ -8,14 +8,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { addMissingFromRecipe, getRecipe, saveRecipe } from '@src/api/rpc';
+import { addMissingFromRecipe, aiTransform, getRecipe, saveRecipe } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
-import type { RecipeIngredient } from '@src/api/types';
+import type { RecipeIngredient, TransformKey } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
 import { useAction } from '@src/ui/useAction';
-import { Button, EmptyState, IconButton, Pill, Screen, Spinner } from '@src/ui/kit';
+import { Button, Chip, EmptyState, IconButton, Pill, Screen, Spinner } from '@src/ui/kit';
 import { colors, radius, spacing, type as t } from '@src/ui/theme';
-import { L } from '@src/i18n/lv';
+import { L, transformLabel } from '@src/i18n/lv';
 import { RecipeImage } from '@src/meals/RecipeImage';
 import { success } from '@src/ui/haptics';
 
@@ -30,6 +30,7 @@ export default function RecipeDetail() {
   const { activeId } = useHouseholdCtx();
   const { run: runAdd, busy: addBusy } = useAction();
   const { run: runSave } = useAction();
+  const { run: runTransform, busy: transformBusy } = useAction();
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -45,6 +46,7 @@ export default function RecipeDetail() {
   const have = recipe.ingredients.filter((i) => i.have);
   const missing: RecipeIngredient[] = recipe.missing?.length ? recipe.missing : recipe.ingredients.filter((i) => !i.have);
   const tags = recipe.tags.filter((tag) => TAG_LV[tag]);
+  const transformKeys = Object.keys(transformLabel) as TransformKey[];
 
   const addMissing = () =>
     runAdd(() => addMissingFromRecipe(activeId!, recipe.id), {
@@ -61,7 +63,13 @@ export default function RecipeDetail() {
     void runSave(() => saveRecipe(recipe.id, next), { silent: true });
   };
 
+  const transform = (key: TransformKey) =>
+    runTransform(() => aiTransform(recipe.id, key), {
+      onDone: (res) => { success(); router.push(`/meals/${res.recipe.id}`); },
+    });
+
   return (
+    <>
     <Screen scroll>
       <View style={styles.topBar}>
         <IconButton icon="chevron-back" onPress={() => router.back()} />
@@ -137,7 +145,20 @@ export default function RecipeDetail() {
         ) : null}
         <Button label={saved ? 'Saglabāts' : L.common.save} icon={saved ? 'bookmark' : 'bookmark-outline'} variant="ghost" onPress={toggleSave} />
       </View>
+
+      <Text style={styles.groupLabel}>{L.meals.transformTitle.toUpperCase()}</Text>
+      <View style={styles.transformRow}>
+        {transformKeys.map((key) => (
+          <Chip key={key} label={transformLabel[key]} onPress={() => transform(key)} />
+        ))}
+      </View>
     </Screen>
+    {transformBusy ? (
+      <View style={styles.overlay}>
+        <Spinner label={L.meals.transforming} />
+      </View>
+    ) : null}
+    </>
   );
 }
 
@@ -148,4 +169,6 @@ const styles = StyleSheet.create({
   ing: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   step: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
   stepNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  transformRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
 });

@@ -4,12 +4,12 @@
  * with feedback chips + notes → offer to mark the used products as consumed.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import { getRecipe, markUsed, rateMeal } from '@src/api/rpc';
+import { aiCookHelp, getRecipe, markUsed, rateMeal } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
 import type { MealRating } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
@@ -32,10 +32,14 @@ export default function Cook() {
   const [timerLeft, setTimerLeft] = useState<number | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpQ, setHelpQ] = useState('');
+  const [helpA, setHelpA] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { run: runRate, busy: rateBusy } = useAction();
   const { run: runUsed, busy: usedBusy } = useAction();
+  const { run: runHelp, busy: helpBusy } = useAction();
 
   const { data: recipe, isLoading } = useQuery({ queryKey: qk.recipe(recipeId), queryFn: () => getRecipe(recipeId), enabled: !!recipeId });
 
@@ -82,6 +86,11 @@ export default function Cook() {
 
   const markAllUsed = () =>
     runUsed(async () => { await Promise.all(recipe.uses_item_ids.map((id) => markUsed(id, 'some'))); }, { onDone: finish });
+
+  const askHelp = () =>
+    runHelp(() => aiCookHelp(helpQ.trim(), recipeId), {
+      onDone: (res) => { success(); setHelpA(res.answer); },
+    });
 
   const progress = phase === 'cook' ? (stepIdx + 1) / Math.max(1, total) : phase === 'prep' ? 0 : 1;
 
@@ -164,6 +173,12 @@ export default function Cook() {
             </View>
           </>
         ) : null}
+
+        {phase === 'prep' || phase === 'cook' ? (
+          <View style={styles.helpWrap}>
+            <Button label={L.cook.help} icon="help-circle-outline" variant="ghost" full={false} onPress={() => setHelpOpen(true)} />
+          </View>
+        ) : null}
       </ScrollView>
 
       {phase === 'prep' ? (
@@ -186,6 +201,39 @@ export default function Cook() {
           </View>
         </View>
       ) : null}
+
+      <Modal visible={helpOpen} transparent animationType="slide" onRequestClose={() => setHelpOpen(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setHelpOpen(false)}>
+            <Pressable style={styles.modalCard} onPress={() => {}}>
+              <View style={styles.modalHeader}>
+                <Text style={t.h2}>{L.cook.helpTitle}</Text>
+                <IconButton icon="close" onPress={() => setHelpOpen(false)} />
+              </View>
+              <Field
+                value={helpQ}
+                onChangeText={setHelpQ}
+                placeholder={L.cook.helpPlaceholder}
+                multiline
+                style={styles.helpInput}
+              />
+              <Button
+                label={L.cook.helpAsk}
+                icon="sparkles-outline"
+                disabled={helpBusy || helpQ.trim().length === 0}
+                onPress={askHelp}
+              />
+              {helpBusy ? (
+                <Spinner label={L.cook.helpThinking} />
+              ) : helpA ? (
+                <View style={styles.answerBox}>
+                  <Text style={[t.body, { lineHeight: 22 }]}>{helpA}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -202,4 +250,10 @@ const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   footer: { padding: spacing.lg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   footerRow: { flexDirection: 'row', gap: spacing.sm },
+  helpWrap: { alignItems: 'center', marginTop: spacing.xl },
+  modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  helpInput: { minHeight: 96, textAlignVertical: 'top' },
+  answerBox: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
 });

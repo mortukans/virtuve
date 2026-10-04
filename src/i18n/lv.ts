@@ -172,6 +172,26 @@ export const priorityLabel: Record<keyof import('../api/types').HouseholdSetting
 
 // ─── copy ────────────────────────────────────────────────────────────────────
 
+export const cravingLabel: Record<string, string> = {
+  crispy: 'Kraukšķīgs',
+  creamy: 'Krēmīgs',
+  spicy: 'Ass',
+  fresh: 'Svaigs',
+  cheesy: 'Ar sieru',
+  sweet: 'Salds',
+  warm: 'Silts',
+  light: 'Viegls',
+};
+
+export const transformLabel: Record<string, string> = {
+  healthier: 'Veselīgāk',
+  cheaper: 'Lētāk',
+  faster: 'Ātrāk',
+  vegetarian: 'Veģetāri',
+  air_fryer: 'Air fryer',
+  more_portions: 'Lielāka porcija',
+};
+
 export const L = {
   app: {
     name: 'Virtuve',
@@ -332,6 +352,26 @@ export const L = {
     makeFaster: 'Ātrāk',
     makeVegetarian: 'Veģetāri',
     for2days: 'Gatavot 2 dienām',
+    craving: 'Ko gribas?',
+    tired: 'Esmu noguris',
+    tiredDesc: 'Ātri, vienkārši, maz trauku',
+    guests: 'Viesi',
+    guestsAdd: 'Pievienot viesi',
+    transformTitle: 'Pielāgot recepti',
+    transforming: 'Pielāgoju recepti…',
+    leftoversTitle: 'No atlikumiem',
+    leftoversBody: 'Ieraksti, kas pāri palicis — izdomāsim, ko no tā pagatavot.',
+    leftoversPlaceholder: 'piem., vakardienas vista',
+    leftoversGenerate: 'Izdomāt no atlikumiem',
+    importTitle: 'Importēt recepti',
+    importBody: 'Ielīmē saiti vai recepti, vai izvēlies ekrānšāviņu.',
+    importUrl: 'Saite',
+    importText: 'Teksts',
+    importImage: 'Attēls',
+    importUrlPlaceholder: 'https://…',
+    importTextPlaceholder: 'Ielīmē recepti šeit…',
+    importGo: 'Importēt',
+    importing: 'Lasu recepti…',
   },
   cook: {
     title: 'Gatavošana',
@@ -339,6 +379,10 @@ export const L = {
     step: (n: number, total: number) => `${n}. solis no ${total}`,
     startTimer: (m: number) => `Sākt ${m} min taimeri`,
     help: 'Palīdzība',
+    helpTitle: 'Kas noticis?',
+    helpPlaceholder: 'piem., mērce sanāca par šķidru',
+    helpAsk: 'Pajautāt',
+    helpThinking: 'Domāju…',
     finish: 'Pabeigt',
     finished: 'Gatavs! Kā sanāca?',
     rateQuestion: 'Vai gatavotu vēlreiz?',

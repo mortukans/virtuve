@@ -1,20 +1,23 @@
 /**
- * "Ko ēdam?" generator. Collects a MealQuery (mood / effort / max time / who eats
- * / cheap / use-expiring), asks the AI for 3 recipes, lazily fills in preview
- * images, and offers to start a household vote on the results.
+ * "Ko ēdam?" generator. Collects a MealQuery (mood / craving / effort / max time
+ * / who eats / guests / cheap / use-expiring), asks the AI for 3 recipes, lazily
+ * fills in preview images, and offers to start a household vote on the results.
+ * Route params: ?focus=<product> pins a product the recipes must use; ?expiring=1
+ * presets "izlietot drīz". Either one auto-generates once on mount.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { aiRecipeImage, aiRecipes, getInventory, startVote } from '@src/api/rpc';
 import { qk } from '@src/api/queryClient';
 import type { Effort, MealQuery, Mood, Recipe } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
 import { useAction } from '@src/ui/useAction';
-import { Button, Card, Chip, IconButton, Screen, Segmented, Spinner } from '@src/ui/kit';
+import { Button, Card, Chip, IconButton, Row, Screen, Segmented, Spinner } from '@src/ui/kit';
 import { colors, spacing, type as t } from '@src/ui/theme';
-import { effortLabel, L, moodLabel } from '@src/i18n/lv';
+import { cravingLabel, effortLabel, L, moodLabel } from '@src/i18n/lv';
 import { RecipeCard } from '@src/meals/RecipeCard';
 
 type TimeKey = '10' | '20' | '30' | 'any';
@@ -27,11 +30,17 @@ export default function Suggest() {
   const { household, activeId } = useHouseholdCtx();
   const members = household?.members ?? [];
 
+  const params = useLocalSearchParams<{ focus?: string | string[]; expiring?: string | string[] }>();
+  const focus = (Array.isArray(params.focus) ? params.focus[0] : params.focus)?.trim() || undefined;
+  const expiringParam = (Array.isArray(params.expiring) ? params.expiring[0] : params.expiring) === '1';
+
   const [mood, setMood] = useState<Mood>('any');
+  const [craving, setCraving] = useState<string | null>(null);
   const [effort, setEffort] = useState<Effort>('normal');
   const [timeKey, setTimeKey] = useState<TimeKey>('any');
   const [eaters, setEaters] = useState<string[]>([]);
   const [initEaters, setInitEaters] = useState(false);
+  const [guests, setGuests] = useState(0);
   const [cheap, setCheap] = useState(false);
   const [expiring, setExpiring] = useState(false);
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
@@ -65,7 +74,7 @@ export default function Suggest() {
     });
   };
 
-  const generate = () => {
+  const generate = (overrides?: Partial<MealQuery>) => {
     if (!activeId) return;
     const query: MealQuery = {
       mood,
@@ -74,6 +83,10 @@ export default function Suggest() {
       eaters,
       cheap,
       prioritise_expiring: expiring,
+      ...(craving ? { craving: cravingLabel[craving] } : null),
+      ...(guests > 0 ? { guests } : null),
+      ...(focus ? { focus } : null),
+      ...overrides,
     };
     void run(() => aiRecipes(activeId, query), {
       onDone: (res) => {
@@ -83,6 +96,30 @@ export default function Suggest() {
     });
   };
 
+  // "Esmu noguris" — fast, minimal effort, ≤20 min, then generate right away.
+  const generateTired = () => {
+    setMood('fast');
+    setEffort('minimal');
+    setTimeKey('20');
+    generate({ mood: 'fast', effort: 'minimal', max_time_min: 20 });
+  };
+
+  // Arriving with ?focus=<product> or ?expiring=1 presets the query and generates once.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !activeId) return;
+    if (focus) {
+      autoRan.current = true;
+      generate({ focus });
+    } else if (expiringParam) {
+      autoRan.current = true;
+      setExpiring(true);
+      setMood('use_soon');
+      generate({ prioritise_expiring: true, mood: 'use_soon' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId, focus, expiringParam]);
+
   const startVoteNow = () => {
     if (!activeId || !recipes?.length) return;
     void voteAction.run(() => startVote(activeId, recipes.map((r) => r.id)), {
@@ -91,6 +128,7 @@ export default function Suggest() {
   };
 
   const moods = Object.keys(moodLabel) as Mood[];
+  const cravings = Object.keys(cravingLabel);
 
   return (
     <Screen scroll>
@@ -99,6 +137,17 @@ export default function Suggest() {
         <Text style={t.h1}>Ko ēdam?</Text>
       </View>
 
+      {focus ? (
+        <Card style={{ marginBottom: spacing.md, borderColor: colors.accent }}>
+          <Row gap={spacing.sm}>
+            <Ionicons name="restaurant-outline" size={18} color={colors.accent} />
+            <Text style={[t.body, { flex: 1 }]}>
+              Izmantojam: <Text style={{ color: colors.accent, fontWeight: '700' }}>{focus}</Text>
+            </Text>
+          </Row>
+        </Card>
+      ) : null}
+
       {inventoryEmpty ? (
         <Card style={{ marginBottom: spacing.md }}>
           <Text style={[t.body, { marginBottom: spacing.md }]}>{L.meals.emptyInventory}</Text>
@@ -106,10 +155,33 @@ export default function Suggest() {
         </Card>
       ) : null}
 
+      <Card onPress={generateTired} style={{ marginBottom: spacing.sm, borderColor: colors.accent }}>
+        <Row gap={spacing.md}>
+          <Ionicons name="bed-outline" size={24} color={colors.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={t.bodyStrong}>{L.meals.tired}</Text>
+            <Text style={[t.small, { marginTop: 2 }]}>{L.meals.tiredDesc}</Text>
+          </View>
+          <Ionicons name="sparkles" size={18} color={colors.accent} />
+        </Row>
+      </Card>
+
       <Label>{L.meals.pickMood}</Label>
       <View style={styles.wrap}>
         {moods.map((m) => (
           <Chip key={m} label={moodLabel[m]} selected={mood === m} onPress={() => setMood(m)} />
+        ))}
+      </View>
+
+      <Label>{L.meals.craving}</Label>
+      <View style={styles.wrap}>
+        {cravings.map((c) => (
+          <Chip
+            key={c}
+            label={cravingLabel[c]}
+            selected={craving === c}
+            onPress={() => setCraving((cur) => (cur === c ? null : c))}
+          />
         ))}
       </View>
 
@@ -147,6 +219,15 @@ export default function Suggest() {
         </>
       ) : null}
 
+      <View style={styles.guestsRow}>
+        <Text style={t.small}>{L.meals.guests}</Text>
+        <Row gap={spacing.sm}>
+          <IconButton icon="remove-circle-outline" color={colors.accent} onPress={() => setGuests((g) => Math.max(0, g - 1))} />
+          <Text style={[t.bodyStrong, { minWidth: 24, textAlign: 'center' }]}>{guests}</Text>
+          <IconButton icon="add-circle-outline" color={colors.accent} onPress={() => setGuests((g) => g + 1)} />
+        </Row>
+      </View>
+
       <Label>Papildu</Label>
       <View style={styles.wrap}>
         <Chip label="Taupīgi" selected={cheap} onPress={() => setCheap((v) => !v)} />
@@ -178,4 +259,5 @@ export default function Suggest() {
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md, marginLeft: -spacing.sm },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  guestsRow: { marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });
