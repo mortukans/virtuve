@@ -44,6 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   web: { favicon: './assets/favicon.png', bundler: 'metro' },
   plugins: [
     'expo-router',
+    '@react-native-community/datetimepicker',
     'expo-secure-store',
     'expo-localization',
     'expo-apple-authentication',

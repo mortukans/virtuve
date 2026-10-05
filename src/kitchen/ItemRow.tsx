@@ -20,6 +20,7 @@ import { qk, queryClient } from '@src/api/queryClient';
 import { useAction } from '@src/ui/useAction';
 import type { AmountLabel, FoodCategory, InventoryItem, ItemState, StorageLocation } from '@src/api/types';
 import { EnumPicker } from './EnumPicker';
+import { ExpiryField } from './ExpiryField';
 import { AMOUNT_OPTIONS, CATEGORY_OPTIONS, LOCATION_OPTIONS, STATE_OPTIONS } from './options';
 
 type Mode = 'closed' | 'actions' | 'edit';
@@ -55,6 +56,7 @@ export function ItemRow({ item, activeId }: { item: InventoryItem; activeId: str
   const [location, setLocation] = useState<StorageLocation>(item.location);
   const [amount, setAmount] = useState<AmountLabel>(item.amount);
   const [state, setState] = useState<ItemState>(item.state);
+  const [expiresOn, setExpiresOn] = useState<string | null>(item.expires_on);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: qk.inventory(activeId) });
   const dot = freshnessColor(item.freshness);
@@ -83,6 +85,7 @@ export function ItemRow({ item, activeId }: { item: InventoryItem; activeId: str
     setLocation(item.location);
     setAmount(item.amount);
     setState(item.state);
+    setExpiresOn(item.expires_on);
     setMode('edit');
   };
 
@@ -96,6 +99,7 @@ export function ItemRow({ item, activeId }: { item: InventoryItem; activeId: str
       location,
       amount,
       state,
+      expires_on: expiresOn,
     };
     void run(() => updateInventoryItem(item.id, patch), { onDone: () => { invalidate(); setMode('closed'); } });
   };
@@ -165,6 +169,7 @@ export function ItemRow({ item, activeId }: { item: InventoryItem; activeId: str
                     <EnumPicker label={L.kitchen.location} options={LOCATION_OPTIONS} value={location} labels={locationLabel} onChange={setLocation} />
                     <EnumPicker label={L.kitchen.amount} options={AMOUNT_OPTIONS} value={amount} labels={amountLabel} onChange={setAmount} />
                     <EnumPicker label={L.kitchen.state} options={STATE_OPTIONS} value={state} labels={stateLabel} onChange={setState} />
+                    <ExpiryField value={expiresOn} onChange={setExpiresOn} />
                     <Row gap={spacing.sm} style={{ marginTop: spacing.xs }}>
                       <Button label={L.common.cancel} variant="ghost" onPress={() => setMode('actions')} style={{ flex: 1 }} />
                       <Button label={L.common.save} onPress={saveEdit} loading={busy} disabled={!name.trim()} style={{ flex: 1 }} />

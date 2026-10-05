@@ -316,6 +316,12 @@ export const L = {
     scanTileSub: 'Atjaunini produktus ar vienu foto',
     yourItems: 'Tavi produkti',
     addItems: 'Pievienot produktus',
+    expiryNone: 'Bez termiņa',
+    expiryOther: 'Cits datums',
+    expiry3d: '3 dienas',
+    expiryWeek: 'Nedēļa',
+    expiry2w: '2 nedēļas',
+    expiryMonth: 'Mēnesis',
   },
   scan: {
     title: 'Ko atradām',
