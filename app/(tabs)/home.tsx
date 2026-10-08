@@ -12,7 +12,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import {
-  getActiveVote, getAttendance, getInventory, getMealPlan, getRecipes, getShoppingList, setAttendance,
+  getActiveVote, getAttendance, getInventory, getMealPlan, getRecipes, getRecommendedRecipes,
+  getShoppingList, setAttendance,
 } from '@src/api/rpc';
 import { qk, queryClient } from '@src/api/queryClient';
 import type { AttendanceStatus, Member } from '@src/api/types';
@@ -20,12 +21,13 @@ import { useHouseholdCtx } from '@src/household/context';
 import { useUserId } from '@src/auth/store';
 import { useAction } from '@src/ui/useAction';
 import {
-  Avatar, Card, EmptyState, IngredientConstellation, MetricCard, SectionLabel, Spinner, Title,
+  Avatar, Card, EmptyState, IngredientConstellation, MetricCard, SectionHeader, SectionLabel, Spinner, Title,
 } from '@src/ui/kit';
 import { colors, DOCK_CLEARANCE, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { attendanceLabel, L } from '@src/i18n/lv';
 import { greetingKey, plusDaysISO, todayISO } from '@src/meals/helpers';
 import { RecipeCard } from '@src/meals/RecipeCard';
+import { RecommendedCard } from '@src/meals/RecommendedCard';
 
 const URGENT: ReadonlyArray<string> = ['use_today', 'use_soon', 'expired'];
 
@@ -42,6 +44,7 @@ export default function Home() {
   const shopping = useQuery({ queryKey: qk.shopping(activeId!), queryFn: () => getShoppingList(activeId!), enabled: !!activeId });
   const plan = useQuery({ queryKey: qk.plan(activeId!, today, weekTo), queryFn: () => getMealPlan(activeId!, today, weekTo), enabled: !!activeId });
   const favourites = useQuery({ queryKey: qk.recipes(activeId!, 'favourites'), queryFn: () => getRecipes(activeId!, 'favourites'), enabled: !!activeId });
+  const recommended = useQuery({ queryKey: qk.recommended, queryFn: getRecommendedRecipes, staleTime: 5 * 60_000 });
 
   if (isLoading && !household) {
     return <SafeAreaView style={styles.screen}><Spinner label={L.common.loading} /></SafeAreaView>;
@@ -151,6 +154,23 @@ export default function Home() {
           />
         </View>
 
+        {/* Recommended recipes (free, with photos) */}
+        {recommended.data && recommended.data.length > 0 ? (
+          <>
+            <SectionHeader title={L.home.recommended} action={L.home.recommendedAll} onAction={() => router.push('/recipes')} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.rail}
+              contentContainerStyle={styles.railContent}
+            >
+              {recommended.data.slice(0, 8).map((r) => (
+                <RecommendedCard key={r.id} recipe={r} width={230} />
+              ))}
+            </ScrollView>
+          </>
+        ) : null}
+
         {/* Active vote in progress */}
         {activeVote ? (
           <Card onPress={() => router.push(`/vote/${activeVote.id}`)} style={styles.voteCard}>
@@ -258,6 +278,9 @@ const styles = StyleSheet.create({
 
   metricsLabel: { marginBottom: spacing.md },
   metrics: { gap: spacing.sm },
+
+  rail: { marginHorizontal: -spacing.lg },
+  railContent: { gap: spacing.md, paddingHorizontal: spacing.lg },
 
   voteCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
