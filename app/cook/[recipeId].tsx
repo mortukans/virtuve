@@ -18,10 +18,11 @@ import { qk, queryClient } from '@src/api/queryClient';
 import type { MealRating } from '@src/api/types';
 import { useHouseholdCtx } from '@src/household/context';
 import { useAction } from '@src/ui/useAction';
-import { Button, Chip, EmptyState, Field, IconButton, SectionLabel, Spinner } from '@src/ui/kit';
+import { Button, Chip, EmptyState, Field, IconButton, Pill, SectionLabel, Spinner } from '@src/ui/kit';
 import { colors, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { feedbackLabel, L, ratingLabel } from '@src/i18n/lv';
 import { impact, success } from '@src/ui/haptics';
+import { useKeepAwake } from 'expo-keep-awake';
 
 type Phase = 'prep' | 'cook' | 'rate' | 'used';
 
@@ -44,6 +45,9 @@ export default function Cook() {
   const { run: runRate, busy: rateBusy } = useAction();
   const { run: runUsed, busy: usedBusy } = useAction();
   const { run: runHelp, busy: helpBusy } = useAction();
+
+  // Keep the screen awake for the whole cooking flow.
+  useKeepAwake();
 
   const { data: recipe, isLoading } = useQuery({ queryKey: qk.recipe(recipeId), queryFn: () => getRecipe(recipeId), enabled: !!recipeId });
 
@@ -71,6 +75,18 @@ export default function Cook() {
   const total = steps.length;
   const step = steps[stepIdx];
   const feedbackKeys = Object.keys(feedbackLabel);
+
+  // Best-effort: ingredients the current step mentions (full name or first word, case-insensitive).
+  const stepIngredients =
+    phase === 'cook' && step
+      ? recipe.ingredients.filter((ing) => {
+          const name = ing.name.toLowerCase().trim();
+          if (!name) return false;
+          const text = step.text.toLowerCase();
+          const first = name.split(/\s+/)[0];
+          return text.includes(name) || (first.length >= 3 && text.includes(first));
+        })
+      : [];
 
   const toggleFeedback = (k: string) =>
     setSelectedFeedback((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
@@ -127,6 +143,13 @@ export default function Cook() {
         <View style={styles.topSpacer} />
       </View>
 
+      {phase === 'prep' || phase === 'cook' ? (
+        <View style={styles.awake}>
+          <Ionicons name="sunny-outline" size={12} color={colors.textFaint} />
+          <Text style={styles.awakeText}>{L.cook.keepAwake}</Text>
+        </View>
+      ) : null}
+
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {phase === 'prep' ? (
           <>
@@ -152,6 +175,22 @@ export default function Cook() {
               <SectionLabel style={{ marginTop: spacing.xs }}>Solis</SectionLabel>
             </View>
             <Text style={styles.stepText}>{step.text}</Text>
+            {stepIngredients.length ? (
+              <View style={styles.stepIng}>
+                <SectionLabel style={{ marginBottom: spacing.sm }}>{L.cook.forThisStep}</SectionLabel>
+                <View style={styles.stepIngWrap}>
+                  {stepIngredients.map((i, idx) => (
+                    <Pill
+                      key={idx}
+                      icon="ellipse"
+                      color={colors.accent}
+                      bg={withAlpha(colors.accent, 0.12)}
+                      label={`${i.name} · ${i.qty}`}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
             {step.timer_min ? (
               <View style={styles.timerWrap}>
                 {timerLeft !== null ? (
@@ -289,4 +328,8 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   helpInput: { minHeight: 96, textAlignVertical: 'top' },
   answerBox: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
+  awake: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingBottom: spacing.sm },
+  awakeText: { ...t.tiny, color: colors.textFaint, letterSpacing: 0.4 },
+  stepIng: { marginTop: spacing.xl },
+  stepIngWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 });

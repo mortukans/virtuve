@@ -193,7 +193,26 @@ const RECIPES: Seed[] = [
   },
 ];
 
+// Discovery category + per-serving macros (g) for the curated set, so they match
+// the imported library (encoded in tags: cat:/p:/c:/f:).
+const EXTRA: Record<string, { cat: string; p: number; c: number; f: number }> = {
+  'a1b2c3d4-0000-4000-8000-000000000001': { cat: 'pasta', p: 42, c: 60, f: 22 },
+  'a1b2c3d4-0000-4000-8000-000000000002': { cat: 'vegetarian', p: 6, c: 30, f: 8 },
+  'a1b2c3d4-0000-4000-8000-000000000003': { cat: 'chicken', p: 45, c: 45, f: 35 },
+  'a1b2c3d4-0000-4000-8000-000000000004': { cat: 'fish', p: 38, c: 12, f: 30 },
+  'a1b2c3d4-0000-4000-8000-000000000005': { cat: 'vegetarian', p: 10, c: 14, f: 26 },
+  'a1b2c3d4-0000-4000-8000-000000000006': { cat: 'breakfast', p: 10, c: 50, f: 11 },
+  'a1b2c3d4-0000-4000-8000-000000000007': { cat: 'vegetarian', p: 12, c: 80, f: 16 },
+  'a1b2c3d4-0000-4000-8000-000000000008': { cat: 'chicken', p: 40, c: 70, f: 18 },
+  'a1b2c3d4-0000-4000-8000-000000000009': { cat: 'breakfast', p: 20, c: 8, f: 22 },
+  'a1b2c3d4-0000-4000-8000-00000000000a': { cat: 'beef', p: 40, c: 38, f: 45 },
+  'a1b2c3d4-0000-4000-8000-00000000000b': { cat: 'pasta', p: 35, c: 70, f: 22 },
+  'a1b2c3d4-0000-4000-8000-00000000000c': { cat: 'beef', p: 42, c: 35, f: 28 },
+};
+
 function toRow(s: Seed) {
+  const x = EXTRA[s.id];
+  const extraTags = x ? [`cat:${x.cat}`, `p:${x.p}`, `c:${x.c}`, `f:${x.f}`] : [];
   return {
     id: s.id,
     household_id: null,
@@ -203,7 +222,7 @@ function toRow(s: Seed) {
     time_total_min: s.total,
     servings: s.servings,
     kcal: s.kcal,
-    tags: s.tags,
+    tags: [...s.tags, ...extraTags],
     ingredients: s.ingredients,
     steps: s.steps.map((text, i) => ({ n: i + 1, text } as Step)),
     uses_item_ids: [],

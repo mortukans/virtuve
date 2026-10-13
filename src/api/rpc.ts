@@ -93,7 +93,7 @@ export const getRecipes = (p_household: string, p_filter: 'recent' | 'saved' | '
 export const getRecommendedRecipes = async (): Promise<Recipe[]> => {
   const { data, error } = await supabase
     .from('recipes').select('*').is('household_id', null)
-    .order('id', { ascending: true }).limit(50);
+    .order('id', { ascending: true }).limit(200);
   if (error) throw new RpcError(error.message ?? 'rpc_error', error.message);
   return (data ?? []) as Recipe[];
 };

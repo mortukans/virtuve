@@ -95,6 +95,18 @@ export const effortLabel: Record<Effort, string> = {
   normal: 'Normāli',
   can_cook: 'Varu pacensties',
 };
+/** Discovery categories for the recipe library (match library.ts RECIPE_CATEGORY_KEYS). */
+export const recipeCategoryLabel: Record<string, string> = {
+  chicken: 'Vista',
+  beef: 'Gaļa',
+  pork: 'Cūkgaļa',
+  fish: 'Zivis',
+  pasta: 'Pasta',
+  vegetarian: 'Veģetāri',
+  breakfast: 'Brokastis',
+  dessert: 'Deserti',
+  side: 'Piedevas',
+};
 
 export const voteLabel: Record<VoteChoice, string> = {
   want: 'Gribu',
@@ -375,6 +387,19 @@ export const L = {
     fromYourItems: 'No taviem produktiem',
     anotherIdea: 'Citu ideju',
     addMissing: 'Pievienot trūkstošo pirkumiem',
+    // discovery + nutrition
+    searchRecipes: 'Meklēt receptes',
+    surpriseMe: 'Pārsteidz mani',
+    allCategories: 'Visas',
+    nothingFound: 'Nekas netika atrasts',
+    perServing: 'Uz porciju',
+    calories: 'Kalorijas',
+    kcalShort: 'kcal',
+    protein: 'Olbaltumvielas',
+    carbs: 'Ogļhidrāti',
+    fat: 'Tauki',
+    serving: 'porcija',
+    nutritionNote: 'Aptuvens aprēķins uz vienu porciju.',
     transformLeftovers: 'Pagatavot no atlikumiem',
     makeHealthier: 'Veselīgāk',
     makeCheaper: 'Lētāk',
@@ -407,6 +432,8 @@ export const L = {
     prep: 'Sagatavošana',
     step: (n: number, total: number) => `${n}. solis no ${total}`,
     startTimer: (m: number) => `Sākt ${m} min taimeri`,
+    keepAwake: 'Ekrāns nedziest',
+    forThisStep: 'Šim solim',
     help: 'Palīdzība',
     helpTitle: 'Kas noticis?',
     helpPlaceholder: 'piem., mērce sanāca par šķidru',

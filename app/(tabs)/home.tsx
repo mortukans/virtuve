@@ -5,7 +5,7 @@
  * the house favourite. "Virtuve dzīvo" redesign — presentation only; all data
  * wiring, queries and the attendance logic are preserved.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -83,6 +83,14 @@ export default function Home() {
   const shoppingOpen = (shopping.data ?? []).filter((s) => s.status !== 'bought').length;
   const planned = (plan.data ?? []).filter((p) => p.status === 'planned').length;
   const favourite = favourites.data?.[0];
+
+  // Rotate the home rail daily so the growing library keeps feeling fresh.
+  const railRecipes = useMemo(() => {
+    const all = recommended.data ?? [];
+    if (all.length <= 8) return all;
+    const start = (Math.floor(Date.now() / 86_400_000) * 8) % all.length;
+    return [...all.slice(start), ...all.slice(0, start)].slice(0, 8);
+  }, [recommended.data]);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
@@ -164,7 +172,7 @@ export default function Home() {
               style={styles.rail}
               contentContainerStyle={styles.railContent}
             >
-              {recommended.data.slice(0, 8).map((r) => (
+              {railRecipes.map((r) => (
                 <RecommendedCard key={r.id} recipe={r} width={230} />
               ))}
             </ScrollView>

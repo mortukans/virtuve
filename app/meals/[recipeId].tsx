@@ -24,6 +24,7 @@ import {
 import { colors, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { L, transformLabel } from '@src/i18n/lv';
 import { RecipeImage } from '@src/meals/RecipeImage';
+import { hasNutrition, parseNutrition, scaleQty, visibleTags } from '@src/meals/library';
 import { success } from '@src/ui/haptics';
 
 const TAG_LV: Record<string, string> = {
@@ -44,6 +45,7 @@ export default function RecipeDetail() {
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<Tab>('ingredients');
+  const [servingsOverride, setServingsOverride] = useState<number | null>(null);
 
   const { data: recipe, isLoading } = useQuery({
     queryKey: qk.recipe(recipeId),
@@ -56,8 +58,23 @@ export default function RecipeDetail() {
 
   const have = recipe.ingredients.filter((i) => i.have);
   const missing: RecipeIngredient[] = recipe.missing?.length ? recipe.missing : recipe.ingredients.filter((i) => !i.have);
-  const tags = recipe.tags.filter((tag) => TAG_LV[tag]);
+  const tags = visibleTags(recipe).filter((tag) => TAG_LV[tag]);
   const transformKeys = Object.keys(transformLabel) as TransformKey[];
+
+  // Serving scaler — display-only. addMissingFromRecipe stays recipe-based (below).
+  const MIN_SERVINGS = 1;
+  const MAX_SERVINGS = 12;
+  const servings = servingsOverride ?? recipe.servings;
+  const scaleFactor = recipe.servings > 0 ? servings / recipe.servings : 1;
+  const stepServings = (delta: number) =>
+    setServingsOverride(Math.max(MIN_SERVINGS, Math.min(MAX_SERVINGS, servings + delta)));
+
+  // Per-serving nutrition from kcal + the encoded macro tags.
+  const nutrition = parseNutrition(recipe);
+  const macros: { label: string; g: number; color: string }[] = [];
+  if (nutrition.protein != null) macros.push({ label: L.meals.protein, g: nutrition.protein, color: colors.herb });
+  if (nutrition.carbs != null) macros.push({ label: L.meals.carbs, g: nutrition.carbs, color: colors.orange });
+  if (nutrition.fat != null) macros.push({ label: L.meals.fat, g: nutrition.fat, color: colors.paprika });
 
   const addMissing = () =>
     runAdd(() => addMissingFromRecipe(activeId!, recipe.id), {
@@ -139,6 +156,22 @@ export default function RecipeDetail() {
 
           {tab === 'ingredients' ? (
             <View style={{ marginTop: spacing.lg }}>
+              {/* serving scaler — rescales the quantities shown below (display-only) */}
+              <View style={styles.scaler}>
+                <IconButton
+                  icon="remove"
+                  bg
+                  color={servings <= MIN_SERVINGS ? colors.textFaint : colors.text}
+                  onPress={() => stepServings(-1)}
+                />
+                <Text style={styles.scalerLabel}>{L.meals.servings(servings)}</Text>
+                <IconButton
+                  icon="add"
+                  bg
+                  color={servings >= MAX_SERVINGS ? colors.textFaint : colors.text}
+                  onPress={() => stepServings(1)}
+                />
+              </View>
               {have.length ? (
                 <>
                   <SectionLabel>Jau ir mājās</SectionLabel>
@@ -148,7 +181,7 @@ export default function RecipeDetail() {
                         <Ionicons name="checkmark-circle" size={20} color={colors.herb} />
                       </View>
                       <Text style={[t.body, { flex: 1 }]}>{i.name}</Text>
-                      <Text style={t.small}>{i.qty}</Text>
+                      <Text style={t.small}>{scaleQty(i.qty, scaleFactor)}</Text>
                     </View>
                   ))}
                 </>
@@ -162,7 +195,7 @@ export default function RecipeDetail() {
                         <View style={styles.missDot} />
                       </View>
                       <Text style={[t.body, { flex: 1, color: colors.text }]}>{i.name}</Text>
-                      <Text style={t.small}>{i.qty}</Text>
+                      <Text style={t.small}>{scaleQty(i.qty, scaleFactor)}</Text>
                     </View>
                   ))}
                 </>
@@ -186,7 +219,32 @@ export default function RecipeDetail() {
 
           {tab === 'nutrition' ? (
             <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-              {recipe.kcal != null ? <MetricCard icon="flame-outline" title={L.meals.kcal(recipe.kcal)} detail="Enerģija" tint={colors.paprika} /> : null}
+              {hasNutrition(nutrition) ? (
+                <View style={styles.nutritionPanel}>
+                  <SectionLabel style={{ marginBottom: spacing.md }}>{L.meals.perServing}</SectionLabel>
+                  {nutrition.kcal != null ? (
+                    <View style={styles.ringWrap}>
+                      <View style={styles.ring}>
+                        <Text style={styles.ringNum}>{nutrition.kcal}</Text>
+                        <Text style={styles.ringUnit}>{L.meals.kcalShort}</Text>
+                      </View>
+                      <Text style={styles.ringCaption}>{L.meals.calories}</Text>
+                    </View>
+                  ) : null}
+                  {macros.length ? (
+                    <View style={styles.macroRow}>
+                      {macros.map((m) => (
+                        <View key={m.label} style={styles.macroCard}>
+                          <View style={[styles.macroDot, { backgroundColor: m.color }]} />
+                          <Text style={[styles.macroVal, { color: m.color }]}>{`${m.g} g`}</Text>
+                          <Text style={styles.macroLabel} numberOfLines={1}>{m.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                  <Text style={styles.nutritionNote}>{L.meals.nutritionNote}</Text>
+                </View>
+              ) : null}
               <MetricCard icon="people-outline" title={L.meals.servings(recipe.servings)} detail="Porcijas" />
               <MetricCard icon="time-outline" title={L.meals.timeTotal(recipe.time_total_min)} detail="Pagatavošanas laiks" />
               <MetricCard icon="hourglass-outline" title={L.meals.timeActive(recipe.time_active_min)} detail="Aktīvais laiks" tint={colors.herb} />
@@ -255,4 +313,28 @@ const styles = StyleSheet.create({
   stepNum: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   transformRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.overlay, alignItems: 'center', justifyContent: 'center' },
+  scaler: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.lg,
+  },
+  scalerLabel: { ...t.bodyStrong },
+  nutritionPanel: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
+  ringWrap: { alignItems: 'center', marginBottom: spacing.lg },
+  ring: {
+    width: 136, height: 136, borderRadius: 68, borderWidth: 6, borderColor: colors.accent,
+    backgroundColor: withAlpha(colors.accent, 0.08), alignItems: 'center', justifyContent: 'center',
+  },
+  ringNum: { fontSize: 36, fontWeight: '800', color: colors.text, letterSpacing: -0.6 },
+  ringUnit: { ...t.small, color: colors.textMuted, marginTop: -2 },
+  ringCaption: { ...t.small, marginTop: spacing.sm },
+  macroRow: { flexDirection: 'row', gap: spacing.sm },
+  macroCard: {
+    flex: 1, backgroundColor: colors.surfaceAlt, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingVertical: spacing.md, paddingHorizontal: spacing.sm, alignItems: 'center', gap: 5,
+  },
+  macroDot: { width: 8, height: 8, borderRadius: 4 },
+  macroVal: { ...t.h3 },
+  macroLabel: { ...t.tiny, color: colors.textMuted, letterSpacing: 0.3 },
+  nutritionNote: { ...t.small, color: colors.textFaint, marginTop: spacing.md },
 });
