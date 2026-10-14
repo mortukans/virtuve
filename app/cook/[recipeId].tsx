@@ -22,7 +22,6 @@ import { Button, Chip, EmptyState, Field, IconButton, Pill, SectionLabel, Spinne
 import { colors, radius, spacing, type as t, withAlpha } from '@src/ui/theme';
 import { feedbackLabel, L, ratingLabel } from '@src/i18n/lv';
 import { impact, success } from '@src/ui/haptics';
-import { useKeepAwake } from 'expo-keep-awake';
 
 type Phase = 'prep' | 'cook' | 'rate' | 'used';
 
@@ -45,9 +44,6 @@ export default function Cook() {
   const { run: runRate, busy: rateBusy } = useAction();
   const { run: runUsed, busy: usedBusy } = useAction();
   const { run: runHelp, busy: helpBusy } = useAction();
-
-  // Keep the screen awake for the whole cooking flow.
-  useKeepAwake();
 
   const { data: recipe, isLoading } = useQuery({ queryKey: qk.recipe(recipeId), queryFn: () => getRecipe(recipeId), enabled: !!recipeId });
 
@@ -142,13 +138,6 @@ export default function Cook() {
         </View>
         <View style={styles.topSpacer} />
       </View>
-
-      {phase === 'prep' || phase === 'cook' ? (
-        <View style={styles.awake}>
-          <Ionicons name="sunny-outline" size={12} color={colors.textFaint} />
-          <Text style={styles.awakeText}>{L.cook.keepAwake}</Text>
-        </View>
-      ) : null}
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {phase === 'prep' ? (
@@ -328,8 +317,6 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   helpInput: { minHeight: 96, textAlignVertical: 'top' },
   answerBox: { backgroundColor: colors.surfaceAlt, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
-  awake: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingBottom: spacing.sm },
-  awakeText: { ...t.tiny, color: colors.textFaint, letterSpacing: 0.4 },
   stepIng: { marginTop: spacing.xl },
   stepIngWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
 });
