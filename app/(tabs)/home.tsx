@@ -46,6 +46,15 @@ export default function Home() {
   const favourites = useQuery({ queryKey: qk.recipes(activeId!, 'favourites'), queryFn: () => getRecipes(activeId!, 'favourites'), enabled: !!activeId });
   const recommended = useQuery({ queryKey: qk.recommended, queryFn: getRecommendedRecipes, staleTime: 5 * 60_000 });
 
+  // Rotate the home rail daily so the growing library keeps feeling fresh.
+  // NOTE: hooks must run before any early return below (Rules of Hooks).
+  const railRecipes = useMemo(() => {
+    const all = recommended.data ?? [];
+    if (all.length <= 8) return all;
+    const start = (Math.floor(Date.now() / 86_400_000) * 8) % all.length;
+    return [...all.slice(start), ...all.slice(0, start)].slice(0, 8);
+  }, [recommended.data]);
+
   if (isLoading && !household) {
     return <SafeAreaView style={styles.screen}><Spinner label={L.common.loading} /></SafeAreaView>;
   }
@@ -83,14 +92,6 @@ export default function Home() {
   const shoppingOpen = (shopping.data ?? []).filter((s) => s.status !== 'bought').length;
   const planned = (plan.data ?? []).filter((p) => p.status === 'planned').length;
   const favourite = favourites.data?.[0];
-
-  // Rotate the home rail daily so the growing library keeps feeling fresh.
-  const railRecipes = useMemo(() => {
-    const all = recommended.data ?? [];
-    if (all.length <= 8) return all;
-    const start = (Math.floor(Date.now() / 86_400_000) * 8) % all.length;
-    return [...all.slice(start), ...all.slice(0, start)].slice(0, 8);
-  }, [recommended.data]);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
