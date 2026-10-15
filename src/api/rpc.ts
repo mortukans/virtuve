@@ -89,13 +89,17 @@ export const getRecipe = (p_recipe: string) => rpc<Recipe>('get_recipe', { p_rec
 export const getRecipes = (p_household: string, p_filter: 'recent' | 'saved' | 'favourites' = 'recent') =>
   rpc<Recipe[]>('get_recipes', { p_household, p_filter });
 /** Free, global "recommended" recipes (household_id null). The recipes RLS allows
- *  selecting null-household rows, so this reads directly — no household needed. */
+ *  selecting null-household rows, so this reads directly — no household needed.
+ *  Lists need only the card + nutrition fields, so we skip the heavy ingredients/
+ *  steps blobs here (the detail screen loads the full recipe via getRecipe). */
+const RECOMMENDED_COLS =
+  'id,household_id,title,summary,time_active_min,time_total_min,servings,kcal,tags,image_url,image_is_ai,source';
 export const getRecommendedRecipes = async (): Promise<Recipe[]> => {
   const { data, error } = await supabase
-    .from('recipes').select('*').is('household_id', null)
-    .order('id', { ascending: true }).limit(200);
+    .from('recipes').select(RECOMMENDED_COLS).is('household_id', null)
+    .order('id', { ascending: true }).limit(500);
   if (error) throw new RpcError(error.message ?? 'rpc_error', error.message);
-  return (data ?? []) as Recipe[];
+  return (data ?? []) as unknown as Recipe[];
 };
 export const saveRecipe = (p_recipe: string, p_saved = true) => rpc<void>('save_recipe', { p_recipe, p_saved });
 export const rateMeal = (

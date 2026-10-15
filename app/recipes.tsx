@@ -1,10 +1,11 @@
 /**
  * "Receptes iedvesmai" — the discovery surface for the global recipe library
- * (~55 recipes with photos). Browse by category, search by title/tag, or let
- * "Pārsteidz mani" pick for you. Every card opens the normal recipe detail.
+ * (200+ recipes with photos). Browse by category, search by title/tag, or let
+ * "Pārsteidz mani" pick for you. A virtualised 2-column FlatList keeps it smooth
+ * at hundreds of cards. Every card opens the normal recipe detail.
  */
 import React, { useMemo, useState } from 'react';
-import { ScrollView, useWindowDimensions, View } from 'react-native';
+import { FlatList, ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { getRecommendedRecipes } from '@src/api/rpc';
@@ -58,8 +59,8 @@ export default function RecipesScreen() {
     router.push(`/meals/${pick.id}`);
   };
 
-  return (
-    <Screen scroll>
+  const header = (
+    <View style={{ paddingHorizontal: spacing.lg }}>
       <Row style={{ justifyContent: 'space-between', marginBottom: spacing.xs }}>
         <Title>{L.home.recommendedTitle}</Title>
         <IconButton icon="chevron-back" onPress={() => router.back()} bg />
@@ -69,69 +70,75 @@ export default function RecipesScreen() {
         <IngredientConstellation />
       </Row>
 
-      {isLoading && recipes.length === 0 ? (
-        <Spinner label={L.common.loading} />
-      ) : recipes.length === 0 ? (
-        <EmptyState icon="restaurant-outline" title={L.home.recommendedTitle} body={L.home.recommendedSub} />
-      ) : (
-        <>
-          <Field
-            placeholder={L.meals.searchRecipes}
-            value={query}
-            onChangeText={setQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            clearButtonMode="while-editing"
-          />
+      <Field
+        placeholder={L.meals.searchRecipes}
+        value={query}
+        onChangeText={setQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+      />
 
-          {presentCategories.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginHorizontal: -spacing.lg, marginBottom: spacing.lg }}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
-            >
-              <Chip label={L.meals.allCategories} selected={category === null} onPress={() => setCategory(null)} />
-              {presentCategories.map((key) => (
-                <Chip
-                  key={key}
-                  label={recipeCategoryLabel[key]}
-                  selected={category === key}
-                  onPress={() => setCategory(key)}
-                />
-              ))}
-            </ScrollView>
-          ) : null}
+      {presentCategories.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginHorizontal: -spacing.lg, marginBottom: spacing.lg }}
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}
+        >
+          <Chip label={L.meals.allCategories} selected={category === null} onPress={() => setCategory(null)} />
+          {presentCategories.map((key) => (
+            <Chip key={key} label={recipeCategoryLabel[key]} selected={category === key} onPress={() => setCategory(key)} />
+          ))}
+        </ScrollView>
+      ) : null}
 
-          <Button
-            label={L.meals.surpriseMe}
-            icon="sparkles"
-            variant="secondary"
-            onPress={onSurprise}
-            disabled={filtered.length === 0}
-            style={{ marginBottom: spacing.lg }}
-          />
+      <Button
+        label={L.meals.surpriseMe}
+        icon="sparkles"
+        variant="secondary"
+        onPress={onSurprise}
+        disabled={filtered.length === 0}
+        style={{ marginBottom: spacing.lg }}
+      />
 
-          <Muted style={{ marginBottom: spacing.md }}>{count(filtered.length, 'recepte', 'receptes')}</Muted>
+      <Muted style={{ marginBottom: spacing.md }}>{count(filtered.length, 'recepte', 'receptes')}</Muted>
+    </View>
+  );
 
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon="search-outline"
-              title={L.meals.nothingFound}
-              body="Pamēģini citu meklējumu vai kategoriju."
-              action="Notīrīt"
-              onAction={resetFilters}
-            />
+  return (
+    <Screen pad={false}>
+      <FlatList
+        data={filtered}
+        keyExtractor={(r) => r.id}
+        numColumns={2}
+        renderItem={({ item }) => <RecommendedCard recipe={item} width={tileWidth} />}
+        columnWrapperStyle={{ gap: spacing.md, paddingHorizontal: spacing.lg }}
+        contentContainerStyle={{ paddingTop: spacing.lg, paddingBottom: spacing.huge, rowGap: spacing.lg }}
+        ListHeaderComponent={header}
+        ListEmptyComponent={
+          isLoading ? (
+            <Spinner label={L.common.loading} />
           ) : (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.md, rowGap: spacing.lg }}>
-              {filtered.map((r) => (
-                <RecommendedCard key={r.id} recipe={r} width={tileWidth} />
-              ))}
+            <View style={{ paddingHorizontal: spacing.lg }}>
+              <EmptyState
+                icon="search-outline"
+                title={L.meals.nothingFound}
+                body="Pamēģini citu meklējumu vai kategoriju."
+                action="Notīrīt"
+                onAction={resetFilters}
+              />
             </View>
-          )}
-        </>
-      )}
+          )
+        }
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+      />
     </Screen>
   );
 }

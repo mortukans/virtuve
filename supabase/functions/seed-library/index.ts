@@ -8,20 +8,23 @@ import { json, preflight } from '../_shared/cors.ts';
 import { callClaude, extractJson, TEXT_MODEL } from '../_shared/claude.ts';
 import { adminClient, HttpError, requireUser } from '../_shared/supa.ts';
 
-const BATCH = 5;
+const BATCH = 6;
 
 // TheMealDB category -> how many to import + our discovery category key.
+// Sums to ~265 targets for a 200+ library with balanced category coverage.
 const PLAN: { cat: string; n: number; key: string }[] = [
-  { cat: 'Chicken', n: 6, key: 'chicken' },
-  { cat: 'Beef', n: 5, key: 'beef' },
-  { cat: 'Pork', n: 3, key: 'pork' },
-  { cat: 'Seafood', n: 5, key: 'fish' },
-  { cat: 'Pasta', n: 6, key: 'pasta' },
-  { cat: 'Vegetarian', n: 5, key: 'vegetarian' },
-  { cat: 'Breakfast', n: 4, key: 'breakfast' },
-  { cat: 'Dessert', n: 4, key: 'dessert' },
-  { cat: 'Side', n: 3, key: 'side' },
-  { cat: 'Lamb', n: 2, key: 'beef' },
+  { cat: 'Chicken', n: 32, key: 'chicken' },
+  { cat: 'Beef', n: 36, key: 'beef' },
+  { cat: 'Lamb', n: 14, key: 'beef' },
+  { cat: 'Pork', n: 18, key: 'pork' },
+  { cat: 'Seafood', n: 28, key: 'fish' },
+  { cat: 'Pasta', n: 12, key: 'pasta' },
+  { cat: 'Vegetarian', n: 32, key: 'vegetarian' },
+  { cat: 'Vegan', n: 7, key: 'vegetarian' },
+  { cat: 'Breakfast', n: 16, key: 'breakfast' },
+  { cat: 'Dessert', n: 36, key: 'dessert' },
+  { cat: 'Side', n: 22, key: 'side' },
+  { cat: 'Starter', n: 12, key: 'side' },
 ];
 
 const ALLOWED_TAGS = ['fast', 'healthy', 'cheap', 'high_protein', 'comfort', 'vegetarian', 'light', 'one_pan', 'baking'];
