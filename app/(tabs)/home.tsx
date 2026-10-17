@@ -137,6 +137,18 @@ export default function Home() {
           <Ionicons name="arrow-up-right-box-outline" size={22} color={colors.accent} />
         </Card>
 
+        {/* Dinner swipe game */}
+        <Card onPress={() => router.push('/game')} style={styles.camera}>
+          <View style={styles.gameTile}>
+            <Ionicons name="heart" size={22} color={colors.paprika} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={t.bodyStrong}>{L.game.title}</Text>
+            <Text style={[t.small, { marginTop: 2 }]}>{L.game.homeCardBody}</Text>
+          </View>
+          <Ionicons name="arrow-up-right-box-outline" size={22} color={colors.paprika} />
+        </Card>
+
         {/* Tonight's glanceable metrics */}
         <SectionLabel style={styles.metricsLabel}>Šovakar</SectionLabel>
         <View style={styles.metrics}>
@@ -280,6 +292,10 @@ const styles = StyleSheet.create({
   },
 
   camera: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
+  gameTile: {
+    width: 46, height: 46, borderRadius: radius.md, backgroundColor: withAlpha(colors.paprika, 0.14),
+    alignItems: 'center', justifyContent: 'center',
+  },
   cameraTile: {
     width: 46, height: 46, borderRadius: radius.md, backgroundColor: withAlpha(colors.accent, 0.14),
     alignItems: 'center', justifyContent: 'center',

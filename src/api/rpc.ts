@@ -101,6 +101,16 @@ export const getRecommendedRecipes = async (): Promise<Recipe[]> => {
   if (error) throw new RpcError(error.message ?? 'rpc_error', error.message);
   return (data ?? []) as unknown as Recipe[];
 };
+
+/** Deck for the dinner swipe game: global recipes WITH ingredients (needed for the
+ *  dietary filter + the preview card). Steps are still loaded on demand via getRecipe. */
+const GAME_COLS = `${RECOMMENDED_COLS},ingredients`;
+export const getGameDeck = async (): Promise<Recipe[]> => {
+  const { data, error } = await supabase
+    .from('recipes').select(GAME_COLS).is('household_id', null).limit(500);
+  if (error) throw new RpcError(error.message ?? 'rpc_error', error.message);
+  return (data ?? []) as unknown as Recipe[];
+};
 export const saveRecipe = (p_recipe: string, p_saved = true) => rpc<void>('save_recipe', { p_recipe, p_saved });
 export const rateMeal = (
   p_recipe: string,

@@ -15,6 +15,7 @@ export const qk = {
   shopping: (hid: string) => ['shopping', hid] as const,
   recipes: (hid: string, filter: string) => ['recipes', hid, filter] as const,
   recommended: ['recommended'] as const,
+  gameDeck: ['gameDeck'] as const,
   recipe: (id: string) => ['recipe', id] as const,
   history: (hid: string) => ['history', hid] as const,
   vote: (id: string) => ['vote', id] as const,

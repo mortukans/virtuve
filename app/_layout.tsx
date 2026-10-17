@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@src/api/queryClient';
 import { useAuth } from '@src/auth/store';
@@ -14,6 +15,18 @@ export default function RootLayout() {
   useEffect(() => {
     void useAuth.getState().bootstrap();
     void useActiveHousehold.getState().hydrate();
+  }, []);
+
+  // Tapping the daily "Pusdienu spēle" reminder opens the game. Guarded so a
+  // notifications hiccup can never crash launch.
+  useEffect(() => {
+    let sub: { remove: () => void } | undefined;
+    try {
+      sub = Notifications.addNotificationResponseReceivedListener(() => {
+        try { router.push('/game'); } catch { /* ignore */ }
+      });
+    } catch { /* ignore */ }
+    return () => { try { sub?.remove(); } catch { /* ignore */ } };
   }, []);
 
   return (
